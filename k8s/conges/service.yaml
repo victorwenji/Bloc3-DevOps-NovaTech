@@ -2,12 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: conges
-  namespace: hrflow
 spec:
-  type: ClusterIP
   selector:
     app: conges
   ports:
-    - name: http
-      port: 3003
+    - port: 3003
       targetPort: 3003

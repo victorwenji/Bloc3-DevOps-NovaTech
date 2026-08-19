@@ -5,6 +5,7 @@ build/
 .env*
 !.env.pmn
 !.env.ci
-*.terraform.lock.hcl
 *.terraform
 *secret.auto.tfvars
+*.tfstate
+*.tfstate.*

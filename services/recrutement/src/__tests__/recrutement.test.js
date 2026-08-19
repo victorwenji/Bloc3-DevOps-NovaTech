@@ -61,3 +61,11 @@ describe('PATCH /recrutement/candidat/:id/statut', () => {
     expect(pool.query).toHaveBeenCalledWith('UPDATE candidats SET statut = $1 WHERE id = $2', ['entretien', '1'])
   })
 })
+
+describe('GET /health', () => {
+  it('retourne 200 et status ok', async () => {
+    const res = await request(app).get('/health')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ status: 'ok' })
+  })
+})

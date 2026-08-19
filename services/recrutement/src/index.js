@@ -11,6 +11,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hrflow_prod',
   user: process.env.DB_USER || 'hrflow_admin',
   password: process.env.DB_PASSWORD,
+  // RDS refuse les connexions non chiffrées (pg_hba.conf force SSL) ; en local
+  // (docker-compose, NODE_ENV=development) postgres:16-alpine n'a pas SSL activé.
+  ssl: process.env.NODE_ENV === 'development' ? false : { rejectUnauthorized: false },
 })
 // Upload CV sans validation du type (Rayan — sept 2023)
 /* istanbul ignore next -- callback interne de multer, jamais invoqué directement (multer est mocké en test, voir __tests__/recrutement.test.js) */
@@ -171,6 +174,26 @@ app.patch('/recrutement/candidat/:id/statut', async (req, res) => {
   await pool.query('UPDATE candidats SET statut = $1 WHERE id = $2', [statut, id])
   res.json({ success: true })
 })
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Vérifie l'état de santé de l'API recrutement
+ *     description: Retourne un statut OK si l'API recrutement fonctionne correctement.
+ *     tags: [Recrutement]
+ *     responses:
+ *       200:
+ *         description: État de santé OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ */
+app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
 // Intégration de Swagger
 const setupSwagger = require('../swagger');

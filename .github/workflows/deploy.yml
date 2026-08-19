@@ -10,9 +10,18 @@ on:
 permissions:
   contents: read
 
+# Sans ça, chaque push déclenche son propre run complet (pipeline.yml se lance sur
+# tout push) et rien n'empêche plusieurs déploiements de tourner en parallèle sur le
+# même environnement : ils se marchent dessus sur le même state Terraform et le même
+# cluster k8s, et le dernier à terminer "gagne", même s'il correspond à un commit plus
+# ancien. On annule les runs devenus obsolètes pour ce même environnement au profit du
+# plus récent.
+concurrency:
+  group: hrflow-deploy-${{ inputs.environment }}
+  cancel-in-progress: true
+
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  NAMESPACE: hrflow
 
 jobs:
   terraform:
@@ -21,17 +30,30 @@ jobs:
     environment: ${{ inputs.environment }}
     outputs:
       instance_id: ${{ steps.tf-output.outputs.instance_id }}
+      rds_endpoint: ${{ steps.tf-output.outputs.rds_endpoint }}
+      rds_address: ${{ steps.tf-output.outputs.rds_address }}
+      db_name: ${{ steps.tf-output.outputs.db_name }}
+      db_username: ${{ steps.tf-output.outputs.db_username }}
+      alb_dns_name: ${{ steps.tf-output.outputs.alb_dns_name }}
     env:
-      TF_VAR_database_password: ${{ secrets.DATABASE_PASSWORD }}
+      # Un seul nom de var Terraform pour le mot de passe DB (avant : deux
+      # TF_VAR différents, database_password et db_password, alors qu'une
+      # seule variable "database_password" est déclarée dans variables.tf)
+      TF_VAR_database_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_ssh_allowed_cidr: ${{ secrets.SSH_ALLOWED_CIDR }}
-      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-      TF_VAR_jwt_refresh_secret: ${{ secrets.JWT_REFRESH_SECRET }}
-      TF_VAR_redis_password: ${{ secrets.REDIS_PASSWORD }}
-      TF_VAR_stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
-      TF_VAR_cors_allowed_origins: ${{ vars.CORS_ALLOWED_ORIGINS }}
-      TF_VAR_db_name: ${{ vars.DB_NAME }}
-      TF_VAR_db_user: ${{ vars.DB_USER }}
+      # JWT_SECRET / JWT_REFRESH_SECRET / STRIPE_SECRET_KEY / CORS_ALLOWED_ORIGINS ne sont
+      # pas des variables Terraform (aucune déclarée dans variables.tf) : elles ne sont
+      # consommées que plus bas, directement via secrets.*/vars.*, pour le ConfigMap/Secret k8s.
+      # database_name / database_username NE sont plus surchargés par des vars GitHub ici :
+      # Terraform (staging.tfvars / production.tfvars) est désormais la seule source de
+      # vérité. Le nom/utilisateur de la base sont republiés en outputs Terraform et lus
+      # depuis needs.terraform.outputs.db_name / db_username plus bas, pour qu'il soit
+      # structurellement impossible que Terraform et le ConfigMap/Secret k8s divergent
+      # (c'est cette divergence qui a forcé un remplacement de la RDS en préparation).
+      TF_VAR_certificate_arn: ${{ vars.ACM_CERTIFICATE_ARN }}
+      # Pas une donnée sensible (pas d'identifiant/secret exploitable) : vars.*
+      # comme CORS_ALLOWED_ORIGINS/ACM_CERTIFICATE_ARN, pas secrets.*.
+      TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
 
     steps:
       - name: Checkout source
@@ -66,18 +88,34 @@ jobs:
         working-directory: ./terraform
         run: terraform apply -auto-approve -var-file="${{ inputs.environment }}.tfvars"
 
-      - name: Get instance id
+      - name: Get terraform outputs
         id: tf-output
         working-directory: ./terraform
-        run: echo "instance_id=$(terraform output -raw instance_id)" >> "$GITHUB_OUTPUT"
-        # ⚠️ Suppose un output `instance_id` dans ton module ec2 — à ajouter s'il n'existe pas encore.
+        run: |
+          set -euo pipefail
+          # Un output vide (ex: mauvais workspace, apply partiel) ne doit jamais
+          # continuer silencieusement : ça produirait un ConfigMap/Secret k8s avec
+          # des valeurs vides et un job postgres-init qui boucle jusqu'au timeout
+          # sans jamais dire pourquoi.
+          for name in instance_id rds_endpoint rds_address db_name db_username alb_dns_name; do
+            value="$(terraform output -raw "$name")"
+            if [ -z "$value" ]; then
+              echo "::error::terraform output '$name' est vide (workspace: $(terraform workspace show))." >&2
+              exit 1
+            fi
+            echo "${name}=${value}" >> "$GITHUB_OUTPUT"
+          done
 
   deploy-k8s:
     name: Deploy application to k3s
     runs-on: ubuntu-24.04
     needs: terraform
+    environment: ${{ inputs.environment }}
     env:
-      INSTANCE_ID: ${{ needs.terraform.outputs.instance_id }}
+      NAMESPACE: hrflow-${{ inputs.environment }}
+      # 2 réplicas par service en production (résilience/capacité sur le t4g.xlarge
+      # dédié), 1 seul en staging pour rester léger sur le t4g.large partagé.
+      REPLICAS: ${{ inputs.environment == 'production' && '2' || '1' }}
     steps:
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -88,6 +126,41 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+
+      # needs.terraform.outputs.* peut arriver vide ici même quand le job terraform
+      # a réussi avec des valeurs non vides : c'est un bug de propagation des job
+      # outputs GitHub Actions (cf. actions/runner#2477), intermittent et sélectif
+      # (certains outputs passent, d'autres non, sur le même run). Plutôt que de
+      # dépendre de ce mécanisme pour des valeurs critiques, on relit directement
+      # le state Terraform (backend S3 distant, donc déjà persisté par le job
+      # terraform) : c'est la même source de vérité, sans le maillon fragile.
+      - name: Get terraform outputs from state
+        working-directory: ./terraform
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform workspace select "${{ inputs.environment }}"
+
+          declare -A tf_to_env=(
+            [instance_id]=INSTANCE_ID
+            [rds_endpoint]=RDS_ENDPOINT
+            [rds_address]=RDS_ADDRESS
+            [db_name]=DB_NAME
+            [db_username]=DB_USERNAME
+            [alb_dns_name]=ALB_DNS_NAME
+          )
+          for tf_name in "${!tf_to_env[@]}"; do
+            env_name="${tf_to_env[$tf_name]}"
+            value="$(terraform output -raw "$tf_name")"
+            if [ -z "$value" ]; then
+              echo "::error::terraform output '$tf_name' est vide (workspace: $(terraform workspace show)) en le relisant depuis deploy-k8s." >&2
+              exit 1
+            fi
+            echo "${env_name}=${value}" >> "$GITHUB_ENV"
+          done
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@3e0aec4d80787158d308d7b364cb1b702e7feb7f # v4
@@ -107,6 +180,52 @@ jobs:
             sleep 10
           done
 
+      - name: Wait for k3s installation to complete
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "for i in $(seq 1 60); do",
+              "  if [ -f /etc/rancher/k3s/k3s.yaml ]; then echo K3S_READY; exit 0; fi",
+              "  echo Attempt $i/60: waiting for k3s...",
+              "  sleep 15",
+              "done",
+              "echo TIMEOUT waiting for k3s",
+              "exit 1"
+            ]' \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "Status" --output text)
+
+          aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "StandardOutputContent" --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "ERREUR : k3s n'a pas fini de s'installer à temps (status: $STATUS)."
+            echo "--- fin de /var/log/novatech-install.log sur l'instance ---"
+            LOG_CMD_ID=$(aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["tail -n 100 /var/log/novatech-install.log || echo LOG_NOT_FOUND"]' \
+              --query "Command.CommandId" --output text)
+            aws ssm wait command-executed --command-id "$LOG_CMD_ID" --instance-id "$INSTANCE_ID" || true
+            aws ssm get-command-invocation \
+              --instance-id "$INSTANCE_ID" \
+              --command-id "$LOG_CMD_ID" \
+              --query "StandardOutputContent" --output text
+            exit 1
+          fi
+
       - name: Fetch kubeconfig via SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
@@ -115,16 +234,36 @@ jobs:
             --parameters 'commands=["cat /etc/rancher/k3s/k3s.yaml"]' \
             --query "Command.CommandId" --output text)
 
-          sleep 5
+          # On ignore le code de sortie du wait ici : s'il échoue, on veut quand
+          # même récupérer stdout/stderr ci-dessous avant d'arrêter le job.
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "Status" --output text)
 
           aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "StandardOutputContent" --output text > kubeconfig.yaml
 
-          # On garde 127.0.0.1 tel quel — le tunnel SSM (étape suivante) l'exposera localement sur le runner
+          if [ "$STATUS" != "Success" ] || [ ! -s kubeconfig.yaml ] || ! grep -q "apiVersion" kubeconfig.yaml; then
+            echo "ERREUR : la commande SSM a échoué (status: $STATUS)."
+            echo "--- stdout ---"
+            cat kubeconfig.yaml
+            echo "--- stderr de la commande SSM ---"
+            aws ssm get-command-invocation \
+              --instance-id "$INSTANCE_ID" \
+              --command-id "$COMMAND_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
           echo "KUBECONFIG=$PWD/kubeconfig.yaml" >> "$GITHUB_ENV"
-      
+
       - name: Install Session Manager plugin
         run: |
           curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
@@ -139,7 +278,6 @@ jobs:
             > ssm-tunnel.log 2>&1 &
           echo "SSM_TUNNEL_PID=$!" >> "$GITHUB_ENV"
 
-          # Laisse le temps au tunnel de s'établir
           for i in $(seq 1 10); do
             if nc -z 127.0.0.1 6443 2>/dev/null; then
               echo "Tunnel SSM établi sur le port 6443."
@@ -152,17 +290,136 @@ jobs:
       - name: Wait for cluster
         run: kubectl get nodes --request-timeout=30s
 
+      - name: Install/upgrade Traefik
+        run: |
+          # Toujours rejoué (idempotent via helm upgrade --install), et non plus
+          # seulement "si absent" : un ancien run avait laissé Traefik installé
+          # mais mal configuré (voir commentaires ci-dessous), et comme ce step
+          # ne faisait rien tant que le Deployment existait déjà, ce mauvais
+          # config restait en place indéfiniment malgré des pipelines "verts"
+          # (le pod traefik restait Pending, donc l'ALB avait 0 target healthy
+          # -> 502 permanent, sans que la pipeline ne le voie jamais).
+          #
+          # Trois réglages non-évidents nécessaires avec hostNetwork=true sur ce
+          # cluster k3s mono-noeud (chart traefik/traefik) :
+          #  - service.spec.type=ClusterIP : par défaut le chart crée un Service
+          #    de type LoadBalancer, ce qui sur k3s déclenche son ServiceLB
+          #    intégré (pod svclb-traefik) qui vient lui aussi bind les ports
+          #    hôte 80/443 -> conflit direct avec le pod traefik (hostNetwork)
+          #    qui veut les mêmes ports -> pod bloqué en Pending indéfiniment
+          #    ("didn't have free ports"). Inutile ici : le vrai load balancer
+          #    est l'ALB AWS, qui atteint déjà le node directement sur :80.
+          #  - ports.metrics.port=9101 : le port metrics par défaut du chart
+          #    (9100) rentre en conflit avec le node-exporter Prometheus déjà
+          #    présent sur le node (monitoring stack), pour la même raison
+          #    (hostNetwork expose tous les containerPort comme hostPort).
+          #  - podSecurityContext.runAsUser=0 + capabilities.drop=null : le
+          #    hardening par défaut du chart (uid non-root + drop ALL + ajout
+          #    explicite de CAP_NET_BIND_SERVICE) devrait suffire à bind le
+          #    port privilégié 80, mais échoue en pratique sur cette AMI/ce
+          #    kernel ARM64 ("bind: permission denied" même avec la capability
+          #    ajoutée). Compromis pragmatique : tourner en root sans drop de
+          #    capabilities plutôt que bloquer indéfiniment sur ce mystère.
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml",
+              "helm repo add traefik https://traefik.github.io/charts || true",
+              "helm repo update",
+              "helm upgrade --install traefik traefik/traefik --namespace kube-system --set ports.web.port=80 --set ports.web.hostPort=80 --set ports.websecure.port=443 --set ports.websecure.hostPort=443 --set ports.metrics.port=9101 --set hostNetwork=true --set service.spec.type=ClusterIP --set podSecurityContext.runAsNonRoot=false --set podSecurityContext.runAsUser=0 --set podSecurityContext.runAsGroup=0 --set securityContext.capabilities.drop=null --set securityContext.readOnlyRootFilesystem=false --wait --timeout 120s",
+              "kubectl delete pod -n kube-system -l app.kubernetes.io/name=traefik --field-selector=status.phase!=Running --ignore-not-found",
+              "kubectl rollout status deployment/traefik -n kube-system --timeout=120s"
+            ]' \
+            --query "Command.CommandId" --output text)
+
+          echo "Waiting for Traefik install command to complete..."
+          # On ignore le code de sortie du wait ici : s'il échoue, on veut quand
+          # même récupérer stdout/stderr et le Status ci-dessous avant d'arrêter
+          # le job (cf. même pattern que "Fetch kubeconfig via SSM" plus haut).
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "Status" --output text)
+
+          aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "StandardOutputContent" --output text
+
+          # Sans ce check, un échec silencieux ici (helm/kubectl en erreur) laissait
+          # le pipeline "vert" alors que Traefik restait absent/mal configuré ->
+          # 0 target ALB healthy -> 502 permanent, découvert seulement en prod.
+          if [ "$STATUS" != "Success" ]; then
+            echo "ERREUR : l'installation de Traefik a échoué (status: $STATUS)."
+            echo "--- stderr de la commande SSM ---"
+            aws ssm get-command-invocation \
+              --instance-id "$INSTANCE_ID" \
+              --command-id "$COMMAND_ID" \
+              --query "StandardErrorContent" --output text
+            exit 1
+          fi
+
+      - name: Verify Traefik is actually serving traffic
+        run: |
+          # Le rollout peut réussir (pod Running) sans que Traefik écoute
+          # correctement sur le hostPort 80 (ex: mauvaise config des ports du
+          # chart) : c'est exactement ce qui s'est produit en prod (pipeline
+          # vert, Traefik absent, ALB en 502 permanent). On vérifie donc
+          # directement, depuis le node lui-même via SSM, que quelque chose
+          # répond en HTTP sur :80 - le port 80 du node n'est routable que
+          # depuis le security group de l'ALB (cf alb_to_ec2_http dans
+          # terraform/main.tf), donc un curl direct depuis le runner GitHub
+          # Actions échouerait de toute façon, Traefik marchant ou non.
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "for i in $(seq 1 10); do",
+              "  CODE=$(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 http://localhost/ || echo 000);",
+              "  if [ \"$CODE\" != \"000\" ]; then echo TRAEFIK_UP code=$CODE; exit 0; fi;",
+              "  echo \"Traefik ne répond pas encore sur :80... ($i/10)\";",
+              "  sleep 5;",
+              "done",
+              "echo TRAEFIK_DOWN",
+              "exit 1"
+            ]' \
+            --query "Command.CommandId" --output text)
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "Status" --output text)
+
+          aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "StandardOutputContent" --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "ERREUR : Traefik ne répond pas sur le port 80 de l'instance après installation."
+            exit 1
+          fi
+
       - name: Apply namespace
-        run: kubectl apply -f k8s/namespace.yaml
+        run: envsubst < k8s/namespace.yaml | kubectl apply -f -
 
       - name: Create/update ConfigMap
         run: |
           kubectl create configmap hrflow-config \
             --namespace ${{ env.NAMESPACE }} \
-            --from-literal=NODE_ENV=production \
-            --from-literal=DB_HOST=postgres \
+            --from-literal=NODE_ENV=${{ inputs.environment }} \
+            --from-literal=DB_HOST="${{ env.RDS_ADDRESS }}" \
             --from-literal=DB_PORT=5432 \
-            --from-literal=DB_NAME="${{ vars.DB_NAME }}" \
+            --from-literal=DB_NAME="${{ env.DB_NAME }}" \
             --from-literal=AUTH_SERVICE_URL=http://auth:3001 \
             --from-literal=PAIE_SERVICE_URL=http://paie:3002 \
             --from-literal=CONGES_SERVICE_URL=http://conges:3003 \
@@ -176,9 +433,9 @@ jobs:
         run: |
           kubectl create secret generic hrflow-secrets \
             --namespace ${{ env.NAMESPACE }} \
-            --from-literal=DB_USER="${{ vars.DB_USER }}" \
+            --from-literal=DB_USER="${{ env.DB_USERNAME }}" \
             --from-literal=DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            --from-literal=DATABASE_URL="postgresql://${{ vars.DB_USER }}:${{ secrets.DB_PASSWORD }}@postgres:5432/${{ vars.DB_NAME }}" \
+            --from-literal=DATABASE_URL="postgresql://${{ env.DB_USERNAME }}:${{ secrets.DB_PASSWORD }}@${{ env.RDS_ENDPOINT }}/${{ env.DB_NAME }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             --from-literal=JWT_REFRESH_SECRET="${{ secrets.JWT_REFRESH_SECRET }}" \
             --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
@@ -199,11 +456,24 @@ jobs:
             --docker-password="$ECR_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy Postgres and Redis
+      - name: Initialize database schema
         run: |
-          kubectl apply -f k8s/postgres/
-          kubectl apply -f k8s/redis/
-          kubectl rollout status statefulset/postgres -n ${{ env.NAMESPACE }} --timeout=90s
+          kubectl apply -f k8s/postgres-init-configmap.yaml -n ${{ env.NAMESPACE }}
+          # Un Job est immuable : on supprime l'ancien avant de relancer (le script est
+          # idempotent — IF NOT EXISTS / ON CONFLICT DO NOTHING — donc sans risque à rejouer)
+          kubectl delete job postgres-init -n ${{ env.NAMESPACE }} --ignore-not-found
+          kubectl apply -f k8s/postgres-init-job.yaml -n ${{ env.NAMESPACE }}
+          kubectl wait --for=condition=complete job/postgres-init -n ${{ env.NAMESPACE }} --timeout=120s
+
+      - name: Debug database init on failure
+        if: failure()
+        run: |
+          kubectl logs -n ${{ env.NAMESPACE }} job/postgres-init --tail=100 || true
+
+      - name: Deploy Redis
+        run: |
+          # Postgres n'est plus déployé ici : on utilise désormais RDS (voir ConfigMap DB_HOST)
+          kubectl apply -f k8s/redis/ -n ${{ env.NAMESPACE }}
           kubectl rollout status statefulset/redis -n ${{ env.NAMESPACE }} --timeout=60s
 
       - name: Substitute image variables and deploy backend services
@@ -212,8 +482,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           for svc in auth paie conges recrutement; do
-            envsubst < k8s/$svc/deployment.yaml | kubectl apply -f -
-            kubectl apply -f k8s/$svc/service.yaml
+            envsubst < k8s/$svc/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
+            kubectl apply -f k8s/$svc/service.yaml -n ${{ env.NAMESPACE }}
           done
 
       - name: Wait for backend services
@@ -222,13 +492,27 @@ jobs:
             kubectl rollout status deployment/$svc -n ${{ env.NAMESPACE }} --timeout=120s
           done
 
+      - name: Debug pods on failure
+        if: failure()
+        run: |
+          echo "--- pods (namespace ${{ env.NAMESPACE }}) ---"
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          for svc in auth paie conges recrutement; do
+            echo "=== $svc : describe deployment ==="
+            kubectl describe deployment/$svc -n ${{ env.NAMESPACE }} || true
+            echo "=== $svc : describe pods ==="
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app=$svc -o name | xargs -r -I{} kubectl describe {}
+            echo "=== $svc : logs ==="
+            kubectl logs -n ${{ env.NAMESPACE }} -l app=$svc --tail=50 --all-containers || true
+          done
+
       - name: Deploy gateway
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          envsubst < k8s/gateway/deployment.yaml | kubectl apply -f -
-          kubectl apply -f k8s/gateway/service.yaml
+          envsubst < k8s/gateway/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          kubectl apply -f k8s/gateway/service.yaml -n ${{ env.NAMESPACE }}
           kubectl rollout status deployment/gateway -n ${{ env.NAMESPACE }} --timeout=120s
 
       - name: Deploy frontend
@@ -236,12 +520,16 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          envsubst < k8s/frontend/deployment.yaml | kubectl apply -f -
-          kubectl apply -f k8s/frontend/service.yaml
+          envsubst < k8s/frontend/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          kubectl apply -f k8s/frontend/service.yaml -n ${{ env.NAMESPACE }}
           kubectl rollout status deployment/frontend -n ${{ env.NAMESPACE }} --timeout=120s
 
       - name: Apply Ingress
-        run: kubectl apply -f k8s/ingress.yaml
+        run: kubectl apply -f k8s/ingress.yaml -n ${{ env.NAMESPACE }}
+
+      - name: Show access endpoints
+        run: |
+          echo "Application disponible via l'ALB : http://${{ env.ALB_DNS_NAME }}"
 
       - name: Close SSM tunnel
         if: always()

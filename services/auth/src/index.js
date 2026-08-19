@@ -18,6 +18,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hrflow_prod',
   user: process.env.DB_USER || 'hrflow_admin',
   password: process.env.DB_PASSWORD,
+  // RDS refuse les connexions non chiffrées (pg_hba.conf force SSL) ; en local
+  // (docker-compose, NODE_ENV=development) postgres:16-alpine n'a pas SSL activé.
+  ssl: process.env.NODE_ENV === 'development' ? false : { rejectUnauthorized: false },
 })
 
 // Login simple — à améliorer plus tard
@@ -58,22 +61,27 @@ const pool = new Pool({
  *               error: "Invalid credentials"
  */
 app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body
-  const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [email]
-  )
-  if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
-  const user = result.rows[0]
-  const valid = await bcrypt.compare(password, user.password_hash)
-  if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
-  const token = jwt.sign(
-    { userId: user.id, role: user.role, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
-  )
-  console.log(`[AUTH] Login: ${email} role=${user.role}`)
-  res.json({ token, user: { id: user.id, email, role: user.role } })
+  try {
+    const { email, password } = req.body
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    )
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
+    const user = result.rows[0]
+    const valid = await bcrypt.compare(password, user.password_hash)
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    )
+    console.log(`[AUTH] Login: ${email} role=${user.role}`)
+    res.json({ token, user: { id: user.id, email, role: user.role } })
+  } catch (err) {
+    console.error('[AUTH] Login error:', err.message)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 })
 
 /**
@@ -114,6 +122,26 @@ app.post('/auth/verify', (req, res) => {
     res.status(401).json({ valid: false, error: 'Invalid token' })
   }
 })
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Vérifie l'état de santé de l'API auth
+ *     description: Retourne un statut OK si l'API auth fonctionne correctement.
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: État de santé OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ */
+app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
 // Intégration de Swagger
 const setupSwagger = require('../swagger');

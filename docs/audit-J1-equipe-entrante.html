@@ -1,0 +1,2231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Audit J1 — Équipe entrante | HRFlow</title>
+
+  <style>
+  :root {
+    --bg: #f4f8fb;
+    --bg-soft: #eef5f8;
+    --surface: #ffffff;
+    --surface-soft: #f8fbfd;
+
+    --text: #102a43;
+    --text-dark: #0b1f33;
+    --muted: #6b8296;
+
+    --accent: #19b7aa;
+    --accent-dark: #108c84;
+    --accent-soft: #e2f7f4;
+
+    --blue: #4385f5;
+    --blue-soft: #e9f0ff;
+
+    --purple: #8067e8;
+    --purple-soft: #eeeafd;
+
+    --orange: #f28b5f;
+    --orange-soft: #fff0e9;
+
+    --red: #df5b62;
+    --red-soft: #fdebed;
+
+    --green: #2ca66f;
+    --green-soft: #e7f7ef;
+
+    --border: #dce7ee;
+
+    --shadow:
+      0 20px 55px rgba(16, 42, 67, 0.08);
+
+    --shadow-hover:
+      0 24px 65px rgba(16, 42, 67, 0.13);
+
+    --radius: 26px;
+
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+
+    background:
+      radial-gradient(
+        circle at 8% 0%,
+        rgba(25, 183, 170, 0.10),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 92% 8%,
+        rgba(67, 133, 245, 0.08),
+        transparent 30%
+      ),
+      linear-gradient(
+        180deg,
+        #f8fbfd 0%,
+        #eef4f7 100%
+      );
+
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* ─────────────────────────────
+     GLOBAL CONTAINER
+  ───────────────────────────── */
+
+  .container {
+    width: min(1220px, calc(100% - 48px));
+    margin: 0 auto;
+  }
+
+  /* ─────────────────────────────
+     HEADER
+  ───────────────────────────── */
+
+  header {
+    position: relative;
+    overflow: hidden;
+
+    background: transparent;
+    border-bottom: 0;
+  }
+
+  header::before {
+    content: "";
+
+    position: absolute;
+    width: 480px;
+    height: 480px;
+
+    border-radius: 50%;
+
+    background:
+      radial-gradient(
+        circle,
+        rgba(25, 183, 170, 0.12),
+        transparent 68%
+      );
+
+    top: -330px;
+    left: calc(50% - 240px);
+
+    pointer-events: none;
+  }
+
+  .header-inner {
+    position: relative;
+
+    padding: 4.5rem 0 3rem;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    gap: 2rem;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    padding: 0.45rem 0.9rem;
+
+    border-radius: 999px;
+
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+
+    border: 1px solid rgba(25, 183, 170, 0.18);
+
+    font-size: 0.82rem;
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    margin-bottom: 1.25rem;
+  }
+
+  .eyebrow-dot {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: var(--accent);
+
+    box-shadow:
+      0 0 0 4px rgba(25, 183, 170, 0.12);
+  }
+
+  h1 {
+    margin: 0;
+
+    color: var(--text-dark);
+
+    font-size: clamp(2.7rem, 5vw, 4.2rem);
+
+    line-height: 1.08;
+
+    letter-spacing: -0.045em;
+  }
+
+  .subtitle {
+    max-width: 780px;
+
+    margin: 1.25rem 0 0;
+
+    color: var(--muted);
+
+    font-size: 1.08rem;
+  }
+
+  .audit-meta {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 0.7rem;
+
+    margin-top: 1.5rem;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    padding: 0.55rem 0.9rem;
+
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.82);
+
+    border: 1px solid var(--border);
+
+    color: var(--muted);
+
+    font-size: 0.86rem;
+    font-weight: 650;
+
+    box-shadow:
+      0 6px 20px rgba(16, 42, 67, 0.04);
+  }
+
+  /* ─────────────────────────────
+     RISK BOX
+  ───────────────────────────── */
+
+  .risk-box {
+    min-width: 245px;
+
+    padding: 1.4rem;
+
+    border-radius: 22px;
+
+    background:
+      linear-gradient(
+        135deg,
+        var(--red-soft),
+        #fff8f8
+      );
+
+    border: 1px solid rgba(223, 91, 98, 0.20);
+
+    box-shadow:
+      0 12px 35px rgba(16, 42, 67, 0.06);
+  }
+
+  .risk-label {
+    color: #bb3d49;
+
+    font-size: 0.75rem;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.08em;
+
+    font-weight: 850;
+  }
+
+  .risk-value {
+    margin-top: 0.35rem;
+
+    color: #a52f3a;
+
+    font-size: 1.85rem;
+
+    line-height: 1;
+
+    font-weight: 850;
+
+    letter-spacing: -0.035em;
+  }
+
+  .risk-description {
+    margin-top: 0.55rem;
+
+    color: #8d4650;
+
+    font-size: 0.84rem;
+  }
+
+  /* ─────────────────────────────
+     NAVIGATION
+  ───────────────────────────── */
+
+  .nav {
+    position: sticky;
+
+    top: 0;
+
+    z-index: 20;
+
+    background: rgba(255, 255, 255, 0.88);
+
+    backdrop-filter: blur(14px);
+
+    border-top: 1px solid rgba(220, 231, 238, 0.75);
+    border-bottom: 1px solid var(--border);
+
+    box-shadow:
+      0 8px 25px rgba(16, 42, 67, 0.04);
+  }
+
+  .nav-inner {
+    display: flex;
+
+    gap: 0.4rem;
+
+    overflow-x: auto;
+
+    padding: 0.7rem 0;
+
+    scrollbar-width: thin;
+  }
+
+  .nav a {
+    white-space: nowrap;
+
+    padding: 0.55rem 0.8rem;
+
+    border-radius: 10px;
+
+    color: var(--muted);
+
+    font-size: 0.82rem;
+    font-weight: 700;
+
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .nav a:hover {
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+
+    transform: translateY(-1px);
+  }
+
+  /* ─────────────────────────────
+     MAIN
+  ───────────────────────────── */
+
+  main {
+    padding: 1rem 0 5rem;
+  }
+
+  section {
+    margin-top: 2rem;
+  }
+
+  section:first-child {
+    margin-top: 0;
+  }
+
+  /* ─────────────────────────────
+     KPI
+  ───────────────────────────── */
+
+  .kpi-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+
+    gap: 1.2rem;
+
+    margin-bottom: 2.5rem;
+  }
+
+  .kpi {
+    position: relative;
+
+    overflow: hidden;
+
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 22px;
+
+    padding: 1.35rem;
+
+    box-shadow: var(--shadow);
+
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .kpi::after {
+    content: "";
+
+    position: absolute;
+
+    width: 100px;
+    height: 100px;
+
+    border-radius: 50%;
+
+    right: -45px;
+    top: -45px;
+
+    background: var(--accent-soft);
+
+    opacity: 0.65;
+  }
+
+  .kpi:hover {
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-hover);
+  }
+
+  .kpi-top {
+    position: relative;
+    z-index: 1;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+  }
+
+  .kpi-label {
+    color: var(--muted);
+
+    font-size: 0.82rem;
+
+    font-weight: 700;
+  }
+
+  .kpi-icon {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 13px;
+
+    display: grid;
+
+    place-items: center;
+
+    font-size: 1rem;
+
+    font-weight: 900;
+  }
+
+  .kpi-number {
+    position: relative;
+    z-index: 1;
+
+    margin-top: 1rem;
+
+    color: var(--text-dark);
+
+    font-size: 2.25rem;
+
+    line-height: 1;
+
+    font-weight: 850;
+
+    letter-spacing: -0.045em;
+  }
+
+  .kpi-description {
+    position: relative;
+    z-index: 1;
+
+    margin-top: 0.55rem;
+
+    color: var(--muted);
+
+    font-size: 0.76rem;
+  }
+
+  /* ─────────────────────────────
+     COLORS
+  ───────────────────────────── */
+
+  .red {
+    background: var(--red-soft);
+    color: var(--red);
+  }
+
+  .orange {
+    background: var(--orange-soft);
+    color: var(--orange);
+  }
+
+  .green {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  .blue {
+    background: var(--blue-soft);
+    color: var(--blue);
+  }
+
+  .purple {
+    background: var(--purple-soft);
+    color: var(--purple);
+  }
+
+  /* ─────────────────────────────
+     SECTION HEADERS
+  ───────────────────────────── */
+
+  .section-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-end;
+
+    gap: 1.5rem;
+
+    margin-bottom: 1.1rem;
+  }
+
+  .section-title {
+    margin: 0;
+
+    color: var(--text-dark);
+
+    font-size: 1.65rem;
+
+    letter-spacing: -0.025em;
+  }
+
+  .section-description {
+    margin: 0.35rem 0 0;
+
+    color: var(--muted);
+
+    font-size: 0.9rem;
+  }
+
+  .section-count {
+    padding: 0.4rem 0.7rem;
+
+    border-radius: 999px;
+
+    background: var(--accent-soft);
+
+    color: var(--accent-dark);
+
+    font-size: 0.76rem;
+
+    font-weight: 750;
+
+    white-space: nowrap;
+  }
+
+  /* ─────────────────────────────
+     SECURITY
+  ───────────────────────────── */
+
+  .security-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 1.2rem;
+  }
+
+  .finding {
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 20px;
+
+    padding: 1.3rem;
+
+    box-shadow: var(--shadow);
+
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .finding:hover {
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-hover);
+  }
+
+  .finding.critical {
+    border-left: 4px solid var(--red);
+  }
+
+  .finding.high {
+    border-left: 4px solid var(--orange);
+  }
+
+  .finding-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    gap: 1rem;
+  }
+
+  .finding-number {
+    color: var(--muted);
+
+    font-size: 0.72rem;
+
+    font-weight: 850;
+
+    letter-spacing: 0.06em;
+  }
+
+  .severity {
+    padding: 0.35rem 0.65rem;
+
+    border-radius: 999px;
+
+    font-size: 0.68rem;
+
+    font-weight: 850;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.05em;
+  }
+
+  .severity-critical {
+    color: #bb3d49;
+    background: var(--red-soft);
+  }
+
+  .severity-high {
+    color: #c9683f;
+    background: var(--orange-soft);
+  }
+
+  .finding h3 {
+    margin: 0.75rem 0 0.7rem;
+
+    color: var(--text-dark);
+
+    font-size: 0.98rem;
+
+    line-height: 1.45;
+  }
+
+  .finding-location {
+    display: inline-block;
+
+    color: var(--muted);
+
+    font-family:
+      SFMono-Regular,
+      Consolas,
+      "Liberation Mono",
+      Menlo,
+      monospace;
+
+    font-size: 0.68rem;
+
+    background: var(--surface-soft);
+
+    border: 1px solid var(--border);
+
+    padding: 0.4rem 0.55rem;
+
+    border-radius: 8px;
+  }
+
+  /* ─────────────────────────────
+     DOMAIN CARDS
+  ───────────────────────────── */
+
+  .domain-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 1.2rem;
+  }
+
+  .domain {
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 22px;
+
+    padding: 1.35rem;
+
+    box-shadow: var(--shadow);
+
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .domain:hover {
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-hover);
+  }
+
+  .domain-icon {
+    width: 44px;
+    height: 44px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 13px;
+
+    margin-bottom: 1rem;
+
+    font-size: 1.1rem;
+  }
+
+  .domain h3 {
+    margin: 0;
+
+    color: var(--text-dark);
+
+    font-size: 1.05rem;
+  }
+
+  .domain p {
+    margin: 0.35rem 0 0;
+
+    color: var(--muted);
+
+    font-size: 0.82rem;
+  }
+
+  .domain-list {
+    list-style: none;
+
+    padding: 0;
+
+    margin: 1rem 0 0;
+  }
+
+  .domain-list li {
+    position: relative;
+
+    padding: 0.55rem 0 0.55rem 1.1rem;
+
+    border-top: 1px solid #edf2f5;
+
+    color: #536b7e;
+
+    font-size: 0.78rem;
+  }
+
+  .domain-list li::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0.9rem;
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+
+    background: var(--accent);
+  }
+
+  /* ─────────────────────────────
+     GIT / INFO CARDS
+  ───────────────────────────── */
+
+  .two-column {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 1.2rem;
+  }
+
+  .info-card {
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 22px;
+
+    padding: 1.45rem;
+
+    box-shadow: var(--shadow);
+
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .info-card:hover {
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-hover);
+  }
+
+  .info-card h3 {
+    margin: 0 0 1rem;
+
+    color: var(--text-dark);
+
+    font-size: 1.05rem;
+  }
+
+  .fact {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    gap: 1.2rem;
+
+    padding: 0.75rem 0;
+
+    border-bottom: 1px solid #edf2f5;
+
+    font-size: 0.8rem;
+  }
+
+  .fact:last-child {
+    border-bottom: 0;
+  }
+
+  .fact-label {
+    color: var(--muted);
+  }
+
+  .fact-value {
+    color: var(--text-dark);
+
+    font-weight: 750;
+
+    text-align: right;
+  }
+
+  /* ─────────────────────────────
+     REMEDIATION
+  ───────────────────────────── */
+
+  .phase {
+    overflow: hidden;
+
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 22px;
+
+    box-shadow: var(--shadow);
+
+    margin-bottom: 1rem;
+
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .phase:hover {
+    transform: translateY(-2px);
+
+    box-shadow: var(--shadow-hover);
+  }
+
+  .phase-header {
+    padding: 1rem 1.3rem;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 1.2rem;
+
+    background:
+      linear-gradient(
+        135deg,
+        #f8fbfd,
+        #f3f8fa
+      );
+
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phase-title {
+    display: flex;
+
+    align-items: center;
+
+    gap: 0.75rem;
+
+    color: var(--text-dark);
+
+    font-weight: 800;
+
+    font-size: 0.9rem;
+  }
+
+  .phase-number {
+    width: 38px;
+    height: 38px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 12px;
+
+    background: var(--accent-soft);
+
+    color: var(--accent-dark);
+
+    font-size: 0.8rem;
+
+    font-weight: 850;
+  }
+
+  .phase-status {
+    color: #228158;
+
+    background: var(--green-soft);
+
+    padding: 0.4rem 0.7rem;
+
+    border-radius: 999px;
+
+    font-size: 0.68rem;
+
+    font-weight: 850;
+
+    white-space: nowrap;
+  }
+
+  .phase-body {
+    padding: 0.35rem 1.3rem 0.7rem;
+  }
+
+  .action {
+    display: grid;
+
+    grid-template-columns: 30px 1fr auto;
+
+    gap: 0.75rem;
+
+    align-items: start;
+
+    padding: 0.85rem 0;
+
+    border-bottom: 1px solid #edf2f5;
+  }
+
+  .action:last-child {
+    border-bottom: 0;
+  }
+
+  .check {
+    width: 24px;
+    height: 24px;
+
+    border-radius: 9px;
+
+    display: grid;
+
+    place-items: center;
+
+    background: var(--green-soft);
+
+    color: var(--green);
+
+    font-size: 0.72rem;
+
+    font-weight: 900;
+  }
+
+  .check.pending {
+    background: var(--orange-soft);
+
+    color: var(--orange);
+  }
+
+  .action-title {
+    color: var(--text-dark);
+
+    font-size: 0.82rem;
+
+    font-weight: 750;
+  }
+
+  .action-description {
+    margin-top: 0.2rem;
+
+    color: var(--muted);
+
+    font-size: 0.76rem;
+  }
+
+  .action-status {
+    color: var(--muted);
+
+    font-size: 0.68rem;
+
+    font-weight: 750;
+
+    white-space: nowrap;
+  }
+
+  /* ─────────────────────────────
+     PIPELINE
+  ───────────────────────────── */
+
+  .pipeline {
+    background:
+      rgba(255, 255, 255, 0.94);
+
+    border: 1px solid var(--border);
+
+    border-radius: 26px;
+
+    padding: 1.8rem;
+
+    box-shadow: var(--shadow);
+  }
+
+  .pipeline > strong {
+    color: var(--text-dark);
+
+    font-size: 1rem;
+  }
+
+  .pipeline-flow {
+    display: flex;
+
+    align-items: center;
+
+    gap: 0;
+
+    margin-top: 1.7rem;
+  }
+
+  .stage {
+    flex: 1;
+
+    text-align: center;
+
+    position: relative;
+  }
+
+  .stage:not(:last-child)::after {
+    content: "";
+
+    position: absolute;
+
+    top: 25px;
+
+    left: 70%;
+
+    width: 60%;
+
+    height: 2px;
+
+    background:
+      linear-gradient(
+        90deg,
+        var(--accent),
+        #cfdde5
+      );
+  }
+
+  .stage-icon {
+    width: 50px;
+    height: 50px;
+
+    margin: auto;
+
+    display: grid;
+
+    place-items: center;
+
+    background: var(--accent-soft);
+
+    color: var(--accent-dark);
+
+    border: 1px solid rgba(25, 183, 170, 0.22);
+
+    border-radius: 15px;
+
+    font-size: 0.82rem;
+
+    font-weight: 850;
+
+    position: relative;
+
+    z-index: 1;
+
+    box-shadow:
+      0 8px 20px rgba(25, 183, 170, 0.08);
+  }
+
+  .stage-title {
+    margin-top: 0.7rem;
+
+    color: var(--text-dark);
+
+    font-size: 0.82rem;
+
+    font-weight: 800;
+  }
+
+  .stage-description {
+    margin-top: 0.2rem;
+
+    color: var(--muted);
+
+    font-size: 0.7rem;
+  }
+
+  /* ─────────────────────────────
+     CALLOUT
+  ───────────────────────────── */
+
+  .callout {
+    margin-top: 1.4rem;
+
+    padding: 1.1rem 1.25rem;
+
+    border-radius: 18px;
+
+    border: 1px solid rgba(67, 133, 245, 0.18);
+
+    background:
+      linear-gradient(
+        135deg,
+        var(--blue-soft),
+        #f5f8ff
+      );
+  }
+
+  .callout strong {
+    color: #356dc9;
+
+    font-size: 0.88rem;
+  }
+
+  .callout p {
+    margin: 0.35rem 0 0;
+
+    color: #49658b;
+
+    font-size: 0.78rem;
+  }
+
+  /* ─────────────────────────────
+     FOOTER
+  ───────────────────────────── */
+
+  footer {
+    padding: 2rem 0;
+
+    background: transparent;
+
+    border-top: 1px solid var(--border);
+
+    color: var(--muted);
+
+    font-size: 0.75rem;
+  }
+
+  footer .container {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 1.2rem;
+  }
+
+  /* ─────────────────────────────
+     RESPONSIVE
+  ───────────────────────────── */
+
+  @media (max-width: 1050px) {
+    .kpi-grid {
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+
+    .domain-grid {
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+
+    .security-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 800px) {
+    .header-inner {
+      flex-direction: column;
+    }
+
+    .risk-box {
+      width: 100%;
+    }
+
+    .two-column {
+      grid-template-columns: 1fr;
+    }
+
+    .pipeline {
+      overflow-x: auto;
+    }
+
+    .pipeline-flow {
+      min-width: 720px;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .container {
+      width: min(100% - 28px, 1220px);
+    }
+
+    .header-inner {
+      padding: 3rem 0 2.2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+    }
+
+    .kpi-grid,
+    .domain-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .section-header {
+      align-items: flex-start;
+
+      flex-direction: column;
+    }
+
+    .section-count {
+      white-space: normal;
+    }
+
+    .phase-header {
+      align-items: flex-start;
+
+      flex-direction: column;
+    }
+
+    .action {
+      grid-template-columns: 28px 1fr;
+    }
+
+    .action-status {
+      grid-column: 2;
+    }
+
+    .fact {
+      flex-direction: column;
+
+      gap: 0.2rem;
+    }
+
+    .fact-value {
+      text-align: left;
+    }
+
+    footer .container {
+      flex-direction: column;
+
+      align-items: flex-start;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="container header-inner">
+
+    <div>
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        HRFlow · Audit technique
+      </div>
+
+      <h1>Audit J1</h1>
+
+      <p class="subtitle">
+        État des lieux de l'équipe entrante — sécurité, historique Git,
+        CI/CD, infrastructure et documentation.
+      </p>
+
+      <div class="audit-meta">
+        <span class="tag">📅 23 juillet 2026</span>
+        <span class="tag">📦 Repo complet</span>
+        <span class="tag">🔎 Code + Git + CI/CD + Infra + Docs</span>
+      </div>
+    </div>
+
+    <div class="risk-box">
+      <div class="risk-label">Niveau de risque initial</div>
+      <div class="risk-value">CRITIQUE</div>
+      <div class="risk-description">
+        Plusieurs secrets exposés et routes sensibles non protégées.
+      </div>
+    </div>
+
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="#overview">Vue d'ensemble</a>
+    <a href="#security">Sécurité</a>
+    <a href="#pipeline">CI/CD</a>
+    <a href="#infrastructure">Infrastructure</a>
+    <a href="#git">Git</a>
+    <a href="#remediation">Remédiation</a>
+    <a href="#target">Cible</a>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+
+    <!-- KPI -->
+
+    <section id="overview" style="margin-top:0">
+      <div class="kpi-grid">
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-label">Constats critiques</span>
+            <span class="kpi-icon red">!</span>
+          </div>
+          <div class="kpi-number">10</div>
+          <div class="kpi-description">
+            Sécurité et exposition des secrets
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-label">Actions réalisées</span>
+            <span class="kpi-icon green">✓</span>
+          </div>
+          <div class="kpi-number">16</div>
+          <div class="kpi-description">
+            Sur les phases de remédiation identifiées
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-label">Phases de remédiation</span>
+            <span class="kpi-icon blue">→</span>
+          </div>
+          <div class="kpi-number">5</div>
+          <div class="kpi-description">
+            Immédiat → amélioration continue
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-label">Pipeline cible</span>
+            <span class="kpi-icon purple">⚙</span>
+          </div>
+          <div class="kpi-number">5</div>
+          <div class="kpi-description">
+            Build → Test → Security → Staging → Prod
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- SECURITY -->
+
+    <section id="security">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Sécurité</h2>
+          <p class="section-description">
+            Les principaux risques identifiés lors de l'audit initial.
+          </p>
+        </div>
+
+        <div class="section-count">10 critiques · plusieurs risques élevés</div>
+      </div>
+
+      <div class="security-grid">
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-01</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            .env de production commité dans l'historique Git
+          </h3>
+          <span class="finding-location">.env · .gitignore</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-02</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Injection SQL sur le login
+          </h3>
+          <span class="finding-location">services/auth/src/index.js:20-22</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-03</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Endpoint /paie/migrate accessible sans authentification
+          </h3>
+          <span class="finding-location">services/paie/src/index.js:33-45</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-04</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Endpoint debug exposant les données congés + employés
+          </h3>
+          <span class="finding-location">services/conges/src/index.js:32-35</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-05</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Middleware JWT présent mais jamais branché dans le gateway
+          </h3>
+          <span class="finding-location">api-gateway/src/index.js</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-06</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            CORS ouvert à toutes les origines
+          </h3>
+          <span class="finding-location">api-gateway/src/index.js:6-11</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-07</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            JWT_SECRET écrit dans les logs
+          </h3>
+          <span class="finding-location">gateway + auth</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-08</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Secrets de production présents comme fallbacks dans le code
+          </h3>
+          <span class="finding-location">auth/src/index.js · paie/src/index.js</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-09</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Mot de passe SSH en clair et StrictHostKeyChecking désactivé
+          </h3>
+          <span class="finding-location">scripts/deploy.sh</span>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-header">
+            <span class="finding-number">SEC-10</span>
+            <span class="severity severity-critical">Critique</span>
+          </div>
+          <h3>
+            Credentials admin fonctionnels sur une branche non mergée
+          </h3>
+          <span class="finding-location">dev:services/conges/src/test-manual.js</span>
+        </article>
+
+      </div>
+    </section>
+
+
+    <!-- DOMAINES -->
+
+    <section id="infrastructure">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">État des domaines</h2>
+          <p class="section-description">
+            Synthèse de l'état technique au démarrage de l'audit.
+          </p>
+        </div>
+      </div>
+
+      <div class="domain-grid">
+
+        <article class="domain">
+          <div class="domain-icon red">🔐</div>
+          <h3>Sécurité</h3>
+          <p>Risque initial très élevé.</p>
+
+          <ul class="domain-list">
+            <li>Secrets exposés</li>
+            <li>Routes sensibles non protégées</li>
+            <li>Injection SQL</li>
+            <li>CORS ouvert</li>
+            <li>Pas de TLS initialement</li>
+          </ul>
+        </article>
+
+        <article class="domain">
+          <div class="domain-icon orange">🔀</div>
+          <h3>Historique Git</h3>
+          <p>Branches et secrets historiques à surveiller.</p>
+
+          <ul class="domain-list">
+            <li>3 branches actives/abandonnées</li>
+            <li>Credentials sur dev</li>
+            <li>Secrets dans l'historique</li>
+            <li>Pas de vrai revert</li>
+            <li>Travail non mergé</li>
+          </ul>
+        </article>
+
+        <article class="domain">
+          <div class="domain-icon blue">⚙</div>
+          <h3>CI/CD</h3>
+          <p>Pipeline initial très minimal.</p>
+
+          <ul class="domain-list">
+            <li>Node 16 EOL</li>
+            <li>Tests commentés</li>
+            <li>Pas de security gate</li>
+            <li>SSH par mot de passe</li>
+            <li>Pas de rollback</li>
+          </ul>
+        </article>
+
+        <article class="domain">
+          <div class="domain-icon purple">☁</div>
+          <h3>Infrastructure</h3>
+          <p>VPS unique et peu d'observabilité.</p>
+
+          <ul class="domain-list">
+            <li>Single point of failure</li>
+            <li>Pas de monitoring initial</li>
+            <li>Backups non automatisés</li>
+            <li>Nginx sans TLS initialement</li>
+            <li>Staging non isolé</li>
+          </ul>
+        </article>
+
+        <article class="domain">
+          <div class="domain-icon orange">📚</div>
+          <h3>Documentation</h3>
+          <p>Documentation historique obsolète.</p>
+
+          <ul class="domain-list">
+            <li>README datant de 2022</li>
+            <li>Architecture incomplète</li>
+            <li>Pas d'OpenAPI</li>
+            <li>Pas de runbook initial</li>
+            <li>Bus factor critique</li>
+          </ul>
+        </article>
+
+        <article class="domain">
+          <div class="domain-icon green">🛠</div>
+          <h3>Remédiation</h3>
+          <p>Forte progression depuis l'audit.</p>
+
+          <ul class="domain-list">
+            <li>Secrets retirés du code</li>
+            <li>JWT rebranché</li>
+            <li>Tests ajoutés</li>
+            <li>TLS activé</li>
+            <li>Monitoring + backups</li>
+          </ul>
+        </article>
+
+      </div>
+    </section>
+
+
+    <!-- GIT -->
+
+    <section id="git">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Historique Git</h2>
+          <p class="section-description">
+            Éléments importants pour comprendre le contexte de maintenance.
+          </p>
+        </div>
+      </div>
+
+      <div class="two-column">
+
+        <div class="info-card">
+          <h3>Branches</h3>
+
+          <div class="fact">
+            <span class="fact-label">main</span>
+            <span class="fact-value">Référence</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">dev</span>
+            <span class="fact-value">+1 commit</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">feature/recrutement-v2</span>
+            <span class="fact-value">+1 commit</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">PMN</span>
+            <span class="fact-value">Sauvegarde remédiation</span>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <h3>Points d'attention</h3>
+
+          <div class="fact">
+            <span class="fact-label">Secrets historiques</span>
+            <span class="fact-value">⚠ À considérer compromis</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Branches abandonnées</span>
+            <span class="fact-value">À conserver — décision équipe</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">package-lock.json</span>
+            <span class="fact-value">⚠ Non suivi</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">deploy.sh</span>
+            <span class="fact-value">Mode 100644</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- REMEDIATION -->
+
+    <section id="remediation">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Plan de remédiation</h2>
+          <p class="section-description">
+            Progression des actions identifiées lors de l'audit.
+          </p>
+        </div>
+
+        <div class="section-count">Phase 0 → Phase 4</div>
+      </div>
+
+
+      <article class="phase">
+
+        <div class="phase-header">
+          <div class="phase-title">
+            <span class="phase-number">0</span>
+            Immédiat · Avant tout autre travail
+          </div>
+
+          <span class="phase-status">MAJORITAIREMENT FAIT</span>
+        </div>
+
+        <div class="phase-body">
+
+          <div class="action">
+            <span class="check pending">!</span>
+            <div>
+              <div class="action-title">Rotation des secrets historiques</div>
+              <div class="action-description">
+                DB, JWT, AWS, Stripe, SendGrid, SMTP, Redis.
+                Action externe au repo encore nécessaire.
+              </div>
+            </div>
+            <span class="action-status">À FAIRE</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Retrait de .env du suivi Git</div>
+              <div class="action-description">
+                .env gitignoré et .env.example créé sans valeur réelle.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Suppression des secrets fallback</div>
+              <div class="action-description">
+                Les services échouent maintenant si une variable obligatoire manque.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Protection des endpoints sensibles</div>
+              <div class="action-description">
+                JWT + rôle admin sur /paie/migrate et /conges/debug/all.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+        </div>
+      </article>
+
+
+      <article class="phase">
+
+        <div class="phase-header">
+          <div class="phase-title">
+            <span class="phase-number">1</span>
+            J1 / J2 · Arrêter l'hémorragie
+          </div>
+
+          <span class="phase-status">100 %</span>
+        </div>
+
+        <div class="phase-body">
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Injection SQL corrigée</div>
+              <div class="action-description">Requête paramétrée sur /auth/login.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">CORS restreint</div>
+              <div class="action-description">Liste blanche via CORS_ALLOWED_ORIGINS.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">JWT_SECRET retiré des logs</div>
+              <div class="action-description">Nettoyage du gateway et du service auth.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">/logs/ supprimé de Nginx</div>
+              <div class="action-description">La route publique n'existe plus.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Staging protégé</div>
+              <div class="action-description">auth_basic activé côté Nginx.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+        </div>
+      </article>
+
+
+      <article class="phase">
+
+        <div class="phase-header">
+          <div class="phase-title">
+            <span class="phase-number">2</span>
+            Semaine 1 · Pipeline & qualité
+          </div>
+
+          <span class="phase-status">100 %</span>
+        </div>
+
+        <div class="phase-body">
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Pipeline CI/CD reconstruit</div>
+              <div class="action-description">
+                Build → Test → Security → Staging → Prod.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Node 22 LTS</div>
+              <div class="action-description">
+                Engines et CI alignés sur la version LTS.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">npm audit intégré</div>
+              <div class="action-description">
+                Gate sur les vulnérabilités high / critical.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Tests backend et frontend</div>
+              <div class="action-description">
+                17 tests réels ajoutés ou réparés.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+        </div>
+      </article>
+
+
+      <article class="phase">
+
+        <div class="phase-header">
+          <div class="phase-title">
+            <span class="phase-number">3</span>
+            Semaines 2–4 · Durcissement infra
+          </div>
+
+          <span class="phase-status">100 %</span>
+        </div>
+
+        <div class="phase-body">
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">TLS prod + staging</div>
+              <div class="action-description">Let's Encrypt / certbot.</div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">SSH par clé</div>
+              <div class="action-description">
+                StrictHostKeyChecking=yes rétabli.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Rollback automatique</div>
+              <div class="action-description">
+                Retour au SHA précédent si le health-check échoue.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Monitoring + backups</div>
+              <div class="action-description">
+                Health-check toutes les 5 minutes + backups horaires testés.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+        </div>
+      </article>
+
+
+      <article class="phase">
+
+        <div class="phase-header">
+          <div class="phase-title">
+            <span class="phase-number">4</span>
+            Continu · Documentation & gouvernance
+          </div>
+
+          <span class="phase-status">EN COURS</span>
+        </div>
+
+        <div class="phase-body">
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">README + architecture réécrits</div>
+              <div class="action-description">
+                Documentation alignée avec le fonctionnement réel.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">RUNBOOK incident</div>
+              <div class="action-description">
+                Déploiement normal, rollback et restauration documentés.
+              </div>
+            </div>
+            <span class="action-status">FAIT</span>
+          </div>
+
+          <div class="action">
+            <span class="check pending">…</span>
+            <div>
+              <div class="action-title">Secrets Manager</div>
+              <div class="action-description">
+                Migration vers Vault / AWS Secrets Manager à prévoir.
+              </div>
+            </div>
+            <span class="action-status">À PLANIFIER</span>
+          </div>
+
+          <div class="action">
+            <span class="check">✓</span>
+            <div>
+              <div class="action-title">Branches dev et recrutement-v2</div>
+              <div class="action-description">
+                Conservation décidée explicitement avec l'équipe.
+              </div>
+            </div>
+            <span class="action-status">DÉCISION</span>
+          </div>
+
+        </div>
+      </article>
+
+    </section>
+
+
+    <!-- PIPELINE CIBLE -->
+
+    <section id="pipeline">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Architecture CI/CD cible</h2>
+          <p class="section-description">
+            Chaque étape constitue une porte de passage vers la suivante.
+          </p>
+        </div>
+      </div>
+
+      <div class="pipeline">
+
+        <strong>Pipeline de livraison sécurisé</strong>
+
+        <div class="pipeline-flow">
+
+          <div class="stage">
+            <div class="stage-icon">01</div>
+            <div class="stage-title">Build</div>
+            <div class="stage-description">
+              Compilation & dépendances
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-icon">02</div>
+            <div class="stage-title">Test</div>
+            <div class="stage-description">
+              Tests obligatoires
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-icon">03</div>
+            <div class="stage-title">Security</div>
+            <div class="stage-description">
+              Audit & CVE
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-icon">04</div>
+            <div class="stage-title">Staging</div>
+            <div class="stage-description">
+              Smoke test
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="stage-icon">05</div>
+            <div class="stage-title">Prod</div>
+            <div class="stage-description">
+              Validation + rollout
+            </div>
+          </div>
+
+        </div>
+
+        <div class="callout">
+          <strong>Principe de sécurité</strong>
+          <p>
+            Un échec de test bloque la suite. Une vulnérabilité critique ou élevée
+            bloque la livraison. Le staging doit passer son smoke test avant la
+            production. Le déploiement production est suivi d'un health-check
+            permettant un rollback automatique.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- SYNTHESIS -->
+
+    <section>
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Synthèse</h2>
+          <p class="section-description">
+            Situation après les travaux de remédiation documentés.
+          </p>
+        </div>
+      </div>
+
+      <div class="two-column">
+
+        <div class="info-card">
+          <h3>🟢 Ce qui est maintenant couvert</h3>
+
+          <div class="fact">
+            <span class="fact-label">Authentification sensible</span>
+            <span class="fact-value">JWT + admin</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Secrets runtime</span>
+            <span class="fact-value">Plus de fallback connu</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Transport</span>
+            <span class="fact-value">TLS</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Déploiement</span>
+            <span class="fact-value">SSH key + rollback</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Observabilité</span>
+            <span class="fact-value">Health-check</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Backups</span>
+            <span class="fact-value">Horaires + restauration testée</span>
+          </div>
+        </div>
+
+
+        <div class="info-card">
+          <h3>🟠 À traiter encore</h3>
+
+          <div class="fact">
+            <span class="fact-label">Secrets historiques</span>
+            <span class="fact-value">Rotation externe</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Historique Git</span>
+            <span class="fact-value">Réécriture à décider</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Secrets Manager</span>
+            <span class="fact-value">À planifier</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Protection main</span>
+            <span class="fact-value">Config GitHub</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Staging</span>
+            <span class="fact-value">VPN / allowlist</span>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">APM / astreinte</span>
+            <span class="fact-value">À renforcer</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="callout">
+        <strong>Conclusion</strong>
+        <p>
+          Le système est passé d'une situation fortement exposée à une base
+          beaucoup plus contrôlée : authentification rétablie, secrets retirés
+          du code, CI avec gates, TLS, déploiement par clé, rollback,
+          monitoring et sauvegardes testées. Les principaux risques restants
+          concernent surtout la compromission historique des secrets, la
+          gouvernance Git/GitHub et la maturité opérationnelle.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <span>HRFlow · Audit J1</span>
+    <span>23 juillet 2026 · Document de passation technique</span>
+  </div>
+</footer>
+
+</body>
+</html>

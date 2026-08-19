@@ -2,9 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway
-  namespace: hrflow
 spec:
-  replicas: 2
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: gateway
@@ -18,47 +17,27 @@ spec:
       containers:
         - name: gateway
           image: ${ECR_REGISTRY}/hrflow/api-gateway:${IMAGE_TAG}
-          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           envFrom:
             - configMapRef:
                 name: hrflow-config
-          env:
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: hrflow-secrets
-                  key: JWT_SECRET
-            - name: JWT_REFRESH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: hrflow-secrets
-                  key: JWT_REFRESH_SECRET
-            - name: AUTH_SERVICE_URL
-              value: http://auth:3001
-            - name: PAIE_SERVICE_URL
-              value: http://paie:3002
-            - name: CONGES_SERVICE_URL
-              value: http://conges:3003
-            - name: RECRUTEMENT_SERVICE_URL
-              value: http://recrutement:3004
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            - secretRef:
+                name: hrflow-secrets
           resources:
             requests:
               cpu: 50m
-              memory: 128Mi
+              memory: 96Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10

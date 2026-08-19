@@ -2,9 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: hrflow
 spec:
-  replicas: 2
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: frontend
@@ -18,35 +17,22 @@ spec:
       containers:
         - name: frontend
           image: ${ECR_REGISTRY}/hrflow/frontend:${IMAGE_TAG}
-          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3005
-          env:
-            - name: PORT
-              value: "3005"
-            - name: HOST
-              value: "0.0.0.0"
-            - name: REACT_APP_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: hrflow-config
-                  key: REACT_APP_API_URL
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3005
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3005
-            initialDelaySeconds: 15
-            periodSeconds: 20
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: 20m
+              memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 150m
+              memory: 192Mi
+          readinessProbe:
+            tcpSocket:
+              port: 3005
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 3005
+            initialDelaySeconds: 15
+            periodSeconds: 10

@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 concurrency:
   group: hrflow-docker-${{ github.workflow }}-${{ github.ref }}
@@ -14,7 +15,7 @@ concurrency:
 jobs:
   docker-build:
     name: Docker build (${{ matrix.name }})
-    runs-on: ubuntu-24.04-arm 
+    runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
@@ -49,7 +50,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
 
       - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/dev-lpa' || github.ref == 'refs/heads/main'
+        if: startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ secrets.AWS_REGION }}
@@ -57,14 +58,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Amazon ECR
-        if: github.ref == 'refs/heads/dev-lpa' || github.ref == 'refs/heads/main'
+        if: startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
 
       - name: Ensure ECR repository exists
         if: >
           github.event_name == 'push' &&
-          (github.ref == 'refs/heads/dev-lpa' || github.ref == 'refs/heads/main')
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
         run: |
           aws ecr describe-repositories \
             --repository-names "${{ matrix.repository }}" \
@@ -77,19 +78,73 @@ jobs:
       - name: Set up Docker Buildx
         if: >
           github.event_name == 'push' &&
-          (github.ref == 'refs/heads/dev-lpa' || github.ref == 'refs/heads/main')
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         if: >
           github.event_name == 'push' &&
-          (github.ref == 'refs/heads/dev-lpa' || github.ref == 'refs/heads/main')
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
         run: |
-          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}:${GITHUB_SHA}"
-          echo "Build et push de $IMAGE"
           docker buildx build \
             --platform linux/arm64 \
             -f "${{ matrix.dockerfile }}" \
-            -t "$IMAGE" \
-            --push \
+            -t "hrflow/${{ matrix.name }}:scan" \
+            --load \
             .
+
+      # Tableau lisible dans les logs du job : avec format=sarif (step suivant),
+      # Trivy n'imprime aucun détail sur stdout (tout part dans le fichier), donc
+      # sans ce passage-ci un exit-code 1 n'indique jamais QUELLES CVE ont matché.
+      - name: Show Trivy scan results
+        if: >
+          github.event_name == 'push' &&
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: hrflow/${{ matrix.name }}:scan
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      # Scan de l'image locale AVANT le push vers ECR : on ne veut pas publier
+      # une image avec des CVE HIGH/CRITICAL corrigibles. ECR a bien
+      # scanOnPush=true (voir job ci-dessus), mais ça scanne APRES publication ;
+      # Trivy ici sert de gate en amont. Rapport seul pour l'instant
+      # (exit-code 0) : tant que la première liste de CVE (alpine 3.24 +
+      # paquets node) n'a pas été triée, bloquer casserait tous les push sur
+      # toutes les branches. Repasser exit-code à '1' une fois triée.
+      - name: Scan image with Trivy
+        if: >
+          github.event_name == 'push' &&
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: hrflow/${{ matrix.name }}:scan
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: >
+          !cancelled() &&
+          github.event_name == 'push' &&
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
+        uses: github/codeql-action/upload-sarif@67ba681cdcbc95ed0371c210ccf82c4d968ae5eb # v3.37.7
+        with:
+          sarif_file: trivy-${{ matrix.name }}.sarif
+          category: trivy-${{ matrix.name }}
+
+      - name: Push Docker image
+        if: >
+          github.event_name == 'push' &&
+          (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main')
+        run: |
+          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ matrix.repository }}:${GITHUB_SHA}"
+
+          echo "Push de $IMAGE"
+
+          docker tag "hrflow/${{ matrix.name }}:scan" "$IMAGE"
+          docker push "$IMAGE"

@@ -172,6 +172,12 @@ const options = {
 const specs = swaggerJsdoc(options);
 
 module.exports = (app) => {
+  // Doit être déclarée avant le app.use('/api-docs', ...) ci-dessous : le
+  // middleware swaggerUi.setup() intercepte toute requête sous /api-docs
+  // (y compris /api-docs/json) et sert la page HTML, Express matchant les
+  // routes dans l'ordre d'enregistrement.
+  // Spec brute, utilisée par l'API Gateway pour fusionner la doc de tous les services
+  app.get('/api-docs/json', (req, res) => res.json(specs));
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Paie Service - HRFlow',

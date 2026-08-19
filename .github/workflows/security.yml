@@ -45,3 +45,55 @@ jobs:
       - name: Audit production dependencies
         working-directory: ${{ matrix.path }}
         run: npm audit --omit=dev --audit-level=high
+
+  api-security-scan:
+    name: OWASP ZAP API scan (api-gateway)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Start application stack with Docker Compose
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: docker compose --env-file .env.ci up -d --build
+
+      - name: Wait for API Gateway
+        run: |
+          timeout 120 bash -c '
+            until curl -fsS http://localhost:3006/health > /dev/null; do
+              echo "Waiting for API Gateway..."
+              sleep 3
+            done
+          '
+
+      # Cible le spec OpenAPI fusionné du gateway (auth + paie + congés +
+      # recrutement) : c'est le point d'entrée unique réellement exposé, donc
+      # le scan couvre les 4 services sans avoir à les cibler un par un.
+      # ZAP tourne avec --network=host (géré par l'action elle-même), donc
+      # http://localhost:3006 - publié par docker-compose sur le runner -
+      # est directement joignable depuis le conteneur ZAP.
+      - name: ZAP API scan
+        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d # v0.10.0
+        with:
+          target: http://localhost:3006/api-docs/json
+          format: openapi
+          allow_issue_writing: false
+          # Rapport seul pour ce premier passage (pas de gate bloquant) : tant
+          # que personne n'a trié les alertes ZAP existantes, bloquer la CI
+          # dessus casserait tous les push sans distinction de gravité. A
+          # passer à true une fois la baseline triée.
+          fail_action: false
+          artifact_name: zap-api-scan-report
+
+      - name: Show Docker logs
+        if: failure()
+        run: docker compose --env-file .env.ci logs --no-color
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose --env-file .env.ci down -v

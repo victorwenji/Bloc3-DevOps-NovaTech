@@ -161,11 +161,14 @@ services:
     build:
       context: .
       dockerfile: docker/front/Dockerfile
+      # CRA compile REACT_APP_API_URL au build, pas au runtime : il faut donc le
+      # passer en build-arg (un `environment:` seul n'a aucun effet sur le bundle).
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL}
     restart: unless-stopped
     environment:
       PORT: 3005
       HOST: 0.0.0.0
-      REACT_APP_API_URL: ${REACT_APP_API_URL}
     depends_on:
       gateway:
         condition: service_started

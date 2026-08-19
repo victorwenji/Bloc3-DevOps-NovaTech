@@ -18,13 +18,13 @@ public_subnet_cidrs = [
 # PROJECT
 # ============================================================
 
-project_name = "my-project"
+project_name = "hrflow-dev"
 
 # ============================================================
 # EC2 / K3S
 # ============================================================
 
-instance_type = "t4g.medium"
+instance_type = "t4g.large"
 
 key_name = "novatech-k3s-key"
 

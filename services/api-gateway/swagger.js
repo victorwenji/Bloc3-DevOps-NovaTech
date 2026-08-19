@@ -72,13 +72,32 @@ async function mergeSpecs() {
     ...(recrutementSpecs?.paths || {}),
   };
 
-  // Fusionner les composants (schemas, securitySchemes, etc.)
+  // Fusionner les composants (schemas, securitySchemes, etc.). Un simple spread des
+  // objets `components` ne suffit pas : chaque service a son propre sous-objet
+  // `schemas`, et spreader des `components` les uns après les autres REMPLACE ce
+  // sous-objet à chaque fois au lieu de le fusionner (dernier arrivé = seul survivant,
+  // ex. recrutement écrasait silencieusement les schémas de auth/paie/congés). Il faut
+  // fusionner explicitement chaque sous-clé (`schemas`, `securitySchemes`).
   mergedSpecs.components = {
     ...(mergedSpecs.components || {}),
     ...(authSpecs?.components || {}),
     ...(paieSpecs?.components || {}),
     ...(congesSpecs?.components || {}),
     ...(recrutementSpecs?.components || {}),
+    schemas: {
+      ...(mergedSpecs.components?.schemas || {}),
+      ...(authSpecs?.components?.schemas || {}),
+      ...(paieSpecs?.components?.schemas || {}),
+      ...(congesSpecs?.components?.schemas || {}),
+      ...(recrutementSpecs?.components?.schemas || {}),
+    },
+    securitySchemes: {
+      ...(mergedSpecs.components?.securitySchemes || {}),
+      ...(authSpecs?.components?.securitySchemes || {}),
+      ...(paieSpecs?.components?.securitySchemes || {}),
+      ...(congesSpecs?.components?.securitySchemes || {}),
+      ...(recrutementSpecs?.components?.securitySchemes || {}),
+    },
   };
 
   // Fusionner les tags
@@ -105,6 +124,12 @@ async function mergeSpecs() {
 module.exports = async (app) => {
   try {
     const mergedSpecs = await mergeSpecs();
+    // Doit être déclarée avant le app.use('/api-docs', ...) ci-dessous : le
+    // middleware swaggerUi.setup() intercepte toute requête sous /api-docs
+    // (y compris /api-docs/json) et sert la page HTML, Express matchant les
+    // routes dans l'ordre d'enregistrement (même piège que dans les swagger.js
+    // des autres services).
+    app.get('/api-docs/json', (req, res) => res.json(mergedSpecs));
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(mergedSpecs, {
       customCss: '.swagger-ui .topbar { display: none }',
       customSiteTitle: 'API Gateway - HRFlow',

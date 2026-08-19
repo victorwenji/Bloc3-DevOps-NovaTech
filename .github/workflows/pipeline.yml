@@ -4,16 +4,10 @@ on:
   push:
     branches:
       - '**'
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.png'
   pull_request:
     branches:
       - main
       - master
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.png'
   workflow_dispatch:
 
 permissions:
@@ -23,27 +17,75 @@ permissions:
   actions: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_tests: ${{ steps.set-output.outputs.skip_tests }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Détection des changements pour les tests : uniquement e2e/, frontend/, services/
+      - name: Détecter les modifications dans e2e, frontend ou services
+        id: filter
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            e2e/**
+            frontend/**
+            services/**
+
+      - name: Déterminer si les tests doivent être skip
+        id: set-output
+        run: |
+          if [ "${{ steps.filter.outputs.any_changed }}" = "false" ]; then
+            echo "skip_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
   codeql:
+    needs: changes
+    if: needs.changes.outputs.skip_tests != 'true'
     uses: ./.github/workflows/codeql.yml
     secrets: inherit
 
   security:
+    needs: changes
+    if: needs.changes.outputs.skip_tests != 'true'
     uses: ./.github/workflows/security.yml
     secrets: inherit
 
   build-tests:
-    needs: [codeql, security]
+    needs: [changes, codeql, security]
+    if: needs.changes.outputs.skip_tests != 'true'
     uses: ./.github/workflows/build-tests.yml
     secrets: inherit
 
+  # docker.yml tague et déploie toujours avec le SHA du commit courant : il doit
+  # donc tourner (et pousser une image) à chaque push sur dev-*/main, même quand
+  # seul un fichier CI/Terraform a changé. Avant, ce job était sauté dès que
+  # aucun Dockerfile n'était modifié (docker_changed == 'true' requis) — un
+  # commit qui ne touchait ni Dockerfile ni docker.yml ne poussait alors aucune
+  # image pour son SHA, alors que deploy-staging/production continuaient (un job
+  # "skipped" n'est pas un "failure") et tentaient de pull une image jamais
+  # construite : ImagePullBackOff garanti sur les 4 services back.
   docker:
-    needs: build-tests
+    needs: [build-tests, changes]
+    if: >
+      ${{ !cancelled() &&
+      !failure() }}
     uses: ./.github/workflows/docker.yml
     secrets: inherit
 
   deploy-staging:
     needs: docker
-    if: startsWith(github.ref, 'refs/heads/dev-') && github.event_name == 'push'
+    if: >
+      ${{ !cancelled() && !failure() &&
+      (startsWith(github.ref, 'refs/heads/dev-') || github.ref == 'refs/heads/main') &&
+      github.event_name == 'push' }}
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
@@ -51,7 +93,10 @@ jobs:
 
   deploy-production:
     needs: deploy-staging
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >
+      ${{ !cancelled() && !failure() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' }}
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production

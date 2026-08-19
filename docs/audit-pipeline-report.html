@@ -3,270 +3,2375 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Audit HRFlow & Architecture Pipeline</title>
+
   <style>
     :root {
-      --bg: #081c2e;
-      --card: #112b4f;
-      --text: #e8f7ff;
-      --muted: #8fbfdd;
-      --accent: #4fd1c5;
-      --accent-dark: #239a96;
-      --accent-alt: #ff8a65;
-      --accent-purple: #8b7dff;
-      --border: rgba(255,255,255,0.12);
-      --shadow: 0 30px 90px rgba(0,0,0,0.30);
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #f4f8fb;
+      --bg-soft: #eef5f8;
+      --surface: #ffffff;
+      --surface-soft: #f8fbfd;
+
+      --text: #102a43;
+      --text-dark: #0b1f33;
+      --muted: #6b8296;
+
+      --accent: #19b7aa;
+      --accent-dark: #108c84;
+      --accent-soft: #e2f7f4;
+
+      --blue: #4385f5;
+      --blue-soft: #e9f0ff;
+
+      --purple: #8067e8;
+      --purple-soft: #eeeafd;
+
+      --orange: #f28b5f;
+      --orange-soft: #fff0e9;
+
+      --red: #df5b62;
+      --red-soft: #fdebed;
+
+      --green: #2ca66f;
+      --green-soft: #e7f7ef;
+
+      --border: #dce7ee;
+
+      --shadow:
+        0 20px 55px rgba(16, 42, 67, 0.08);
+
+      --shadow-hover:
+        0 24px 65px rgba(16, 42, 67, 0.13);
+
+      --radius: 26px;
+
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(circle at top, rgba(79,209,197,0.15), transparent 35%),
-                  linear-gradient(180deg, #081c2e 0%, #04111f 100%);
+
+      background:
+        radial-gradient(
+          circle at 8% 0%,
+          rgba(25, 183, 170, 0.10),
+          transparent 28%
+        ),
+        radial-gradient(
+          circle at 92% 8%,
+          rgba(67, 133, 245, 0.08),
+          transparent 30%
+        ),
+        linear-gradient(
+          180deg,
+          #f8fbfd 0%,
+          #eef4f7 100%
+        );
+
       color: var(--text);
       line-height: 1.65;
     }
-    header {
-      padding: 3rem 2rem 1rem;
-      text-align: center;
+
+    a {
+      color: inherit;
+      text-decoration: none;
     }
-    h1 { margin: 0; font-size: clamp(2rem, 3vw, 3rem); }
-    p.intro { margin: 1rem auto 0; max-width: 720px; color: var(--muted); }
-    main { padding: 0 2rem 3rem; max-width: 1200px; margin: 0 auto; }
-    .grid {
-      display: grid;
-      gap: 1.5rem;
-    }
-    .card {
-      background: linear-gradient(180deg, rgba(12, 35, 60, 0.96), rgba(8, 20, 38, 0.95));
+
+    code {
+      padding: 0.12rem 0.35rem;
+
+      border-radius: 6px;
+
+      background: var(--surface-soft);
       border: 1px solid var(--border);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      padding: 1.75rem;
-      backdrop-filter: blur(8px);
+
+      color: var(--accent-dark);
+
+      font-family:
+        SFMono-Regular,
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+      font-size: 0.9em;
     }
-    .card h2 {
-      margin-top: 0;
-      margin-bottom: 1rem;
-      color: #fff;
-      font-size: 1.55rem;
+
+    /* =========================================================
+       GLOBAL CONTAINER
+    ========================================================= */
+
+    .container {
+      width: min(1220px, calc(100% - 48px));
+      margin: 0 auto;
     }
-    .summary-grid {
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+
+    /* =========================================================
+       HEADER
+    ========================================================= */
+
+    header {
+      position: relative;
+      overflow: hidden;
+
+      background: transparent;
+      border-bottom: 0;
     }
-    .badge {
+
+    header::before {
+      content: "";
+
+      position: absolute;
+
+      width: 480px;
+      height: 480px;
+
+      border-radius: 50%;
+
+      background:
+        radial-gradient(
+          circle,
+          rgba(25, 183, 170, 0.12),
+          transparent 68%
+        );
+
+      top: -330px;
+      left: calc(50% - 240px);
+
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+
+      padding: 4.5rem 0 3rem;
+
+      display: flex;
+
+      justify-content: space-between;
+      align-items: flex-start;
+
+      gap: 2rem;
+    }
+
+    .eyebrow {
       display: inline-flex;
       align-items: center;
-      padding: 0.5rem 0.9rem;
+      gap: 0.55rem;
+
+      padding: 0.45rem 0.9rem;
+
       border-radius: 999px;
-      background: rgba(79, 209, 197, 0.12);
-      color: var(--accent);
-      border: 1px solid rgba(79, 209, 197, 0.18);
-      font-size: 0.95rem;
-      margin-right: 0.5rem;
+
+      background: var(--accent-soft);
+
+      color: var(--accent-dark);
+
+      border: 1px solid rgba(25, 183, 170, 0.18);
+
+      font-size: 0.82rem;
+      font-weight: 800;
+
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+
+      margin-bottom: 1.25rem;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+
+      border-radius: 50%;
+
+      background: var(--accent);
+
+      box-shadow:
+        0 0 0 4px rgba(25, 183, 170, 0.12);
     }
-    th, td {
-      padding: 0.9rem 0.8rem;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      font-feature-settings: "tnum";
+
+    h1 {
+      margin: 0;
+
+      color: var(--text-dark);
+
+      font-size: clamp(2.7rem, 5vw, 4.2rem);
+
+      line-height: 1.08;
+
+      letter-spacing: -0.045em;
     }
-    th { color: var(--muted); font-weight: 600; }
-    .code {
-      display: block;
-      width: 100%;
-      overflow-x: auto;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 1rem;
-      font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-      color: #c8eeff;
-      line-height: 1.5;
-      margin-top: 1rem;
+
+    .intro {
+      max-width: 780px;
+
+      margin: 1.25rem 0 0;
+
+      color: var(--muted);
+
+      font-size: 1.08rem;
     }
-    .diagram {
-      display: grid;
-      gap: 1rem;
-    }
-    .pipeline-line {
+
+    .meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.85rem;
-      align-items: center;
-      justify-content: center;
-      margin: 1rem 0 0.5rem;
+
+      gap: 0.7rem;
+
+      margin-top: 1.5rem;
     }
-    .pipeline-step {
+
+    .tag {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.9rem 1.2rem;
+      gap: 0.35rem;
+
+      padding: 0.55rem 0.9rem;
+
       border-radius: 999px;
-      background: linear-gradient(135deg, rgba(79,209,197,0.18), rgba(139,125,255,0.18));
-      color: var(--text);
-      font-weight: 600;
-      border: 1px solid rgba(255,255,255,0.08);
-      min-width: 170px;
-      justify-content: center;
-    }
-    .pipeline-step span {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      background: var(--accent);
-    }
-    .pipeline-line .arrow {
-      font-size: 1.2rem;
-      color: var(--accent-alt);
-      margin: 0 0.3rem;
-    }
-    .diagram svg {
-      width: 100%;
-      height: auto;
-      border-radius: 24px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.10);
-    }
-    .stage-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .stage-list li {
-      margin-bottom: 0.85rem;
-    }
-    .stage-list strong { color: #fff; }
-    footer {
-      padding-top: 2rem;
-      text-align: center;
+
+      background: rgba(255, 255, 255, 0.82);
+
+      border: 1px solid var(--border);
+
       color: var(--muted);
-      font-size: 0.95rem;
+
+      font-size: 0.86rem;
+      font-weight: 650;
+
+      box-shadow:
+        0 6px 20px rgba(16, 42, 67, 0.04);
+    }
+
+    .status-box {
+      min-width: 245px;
+
+      padding: 1.4rem;
+
+      border-radius: 22px;
+
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent-soft),
+          #f6fffd
+        );
+
+      border: 1px solid rgba(25, 183, 170, 0.20);
+
+      box-shadow:
+        0 12px 35px rgba(16, 42, 67, 0.06);
+    }
+
+    .status-label {
+      color: var(--accent-dark);
+
+      font-size: 0.75rem;
+
+      text-transform: uppercase;
+
+      letter-spacing: 0.08em;
+
+      font-weight: 850;
+    }
+
+    .status-value {
+      margin-top: 0.35rem;
+
+      color: var(--text-dark);
+
+      font-size: 1.85rem;
+
+      line-height: 1;
+
+      font-weight: 850;
+
+      letter-spacing: -0.035em;
+    }
+
+    .status-description {
+      margin-top: 0.55rem;
+
+      color: var(--muted);
+
+      font-size: 0.84rem;
+    }
+
+    /* =========================================================
+       NAVIGATION
+    ========================================================= */
+
+    .nav {
+      position: sticky;
+
+      top: 0;
+
+      z-index: 20;
+
+      background: rgba(255, 255, 255, 0.88);
+
+      backdrop-filter: blur(14px);
+
+      border-top: 1px solid rgba(220, 231, 238, 0.75);
+
+      border-bottom: 1px solid var(--border);
+
+      box-shadow:
+        0 8px 25px rgba(16, 42, 67, 0.04);
+    }
+
+    .nav-inner {
+      display: flex;
+
+      gap: 0.4rem;
+
+      overflow-x: auto;
+
+      padding: 0.7rem 0;
+
+      scrollbar-width: thin;
+    }
+
+    .nav a {
+      white-space: nowrap;
+
+      padding: 0.55rem 0.8rem;
+
+      border-radius: 10px;
+
+      color: var(--muted);
+
+      font-size: 0.82rem;
+      font-weight: 700;
+
+      transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .nav a:hover {
+      background: var(--accent-soft);
+
+      color: var(--accent-dark);
+
+      transform: translateY(-1px);
+    }
+
+    /* =========================================================
+       MAIN
+    ========================================================= */
+
+    main {
+      padding: 1rem 0 5rem;
+    }
+
+    section {
+      margin-top: 2rem;
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .section-header {
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: flex-end;
+
+      gap: 1.5rem;
+
+      margin-bottom: 1.1rem;
+    }
+
+    .section-title {
+      margin: 0;
+
+      color: var(--text-dark);
+
+      font-size: 1.65rem;
+
+      letter-spacing: -0.025em;
+    }
+
+    .section-description {
+      margin: 0.35rem 0 0;
+
+      color: var(--muted);
+
+      font-size: 0.9rem;
+    }
+
+    .section-count {
+      padding: 0.4rem 0.7rem;
+
+      border-radius: 999px;
+
+      background: var(--accent-soft);
+
+      color: var(--accent-dark);
+
+      font-size: 0.76rem;
+
+      font-weight: 750;
+
+      white-space: nowrap;
+    }
+
+    /* =========================================================
+       CARDS
+    ========================================================= */
+
+    .card {
+      background:
+        rgba(255, 255, 255, 0.94);
+
+      border: 1px solid var(--border);
+
+      border-radius: 22px;
+
+      box-shadow: var(--shadow);
+
+      padding: 1.45rem;
+
+      transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+
+      box-shadow: var(--shadow-hover);
+    }
+
+    .card h2 {
+      margin: 0 0 0.5rem;
+
+      color: var(--text-dark);
+
+      font-size: 1.2rem;
+
+      letter-spacing: -0.02em;
+    }
+
+    .card h3 {
+      margin: 0;
+
+      color: var(--text-dark);
+
+      font-size: 1.05rem;
+    }
+
+    .card p {
+      color: #536b7e;
+
+      font-size: 0.82rem;
+    }
+
+    /* =========================================================
+       KPI
+    ========================================================= */
+
+    .kpi-grid {
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+      gap: 1.2rem;
+
+      margin-bottom: 2.5rem;
+    }
+
+    .kpi {
+      position: relative;
+
+      overflow: hidden;
+
+      background:
+        rgba(255, 255, 255, 0.94);
+
+      border: 1px solid var(--border);
+
+      border-radius: 22px;
+
+      padding: 1.35rem;
+
+      box-shadow: var(--shadow);
+
+      transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .kpi::after {
+      content: "";
+
+      position: absolute;
+
+      width: 100px;
+      height: 100px;
+
+      border-radius: 50%;
+
+      right: -45px;
+      top: -45px;
+
+      background: var(--accent-soft);
+
+      opacity: 0.65;
+    }
+
+    .kpi:hover {
+      transform: translateY(-2px);
+
+      box-shadow: var(--shadow-hover);
+    }
+
+    .kpi-top {
+      position: relative;
+      z-index: 1;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+
+      font-size: 0.82rem;
+
+      font-weight: 700;
+    }
+
+    .kpi-icon {
+      position: relative;
+      z-index: 1;
+
+      display: grid;
+
+      place-items: center;
+
+      width: 40px;
+      height: 40px;
+
+      border-radius: 13px;
+
+      font-size: 1rem;
+
+      font-weight: 900;
+    }
+
+    .kpi-value {
+      position: relative;
+      z-index: 1;
+
+      margin-top: 1rem;
+
+      color: var(--text-dark);
+
+      font-size: 2.25rem;
+
+      line-height: 1;
+
+      font-weight: 850;
+
+      letter-spacing: -0.045em;
+    }
+
+    .kpi-description {
+      position: relative;
+      z-index: 1;
+
+      margin-top: 0.55rem;
+
+      color: var(--muted);
+
+      font-size: 0.76rem;
+    }
+
+    /* =========================================================
+       COLOR UTILITIES
+    ========================================================= */
+
+    .blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .green {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .purple {
+      background: var(--purple-soft);
+      color: var(--purple);
+    }
+
+    .orange {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    /* =========================================================
+       SUMMARY
+    ========================================================= */
+
+    .summary-grid {
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+      gap: 0.9rem;
+
+      margin-top: 1.1rem;
+    }
+
+    .summary-item {
+      padding: 1rem;
+
+      border: 1px solid var(--border);
+
+      border-radius: 14px;
+
+      background: var(--surface-soft);
+
+      transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .summary-item:hover {
+      border-color: rgba(25, 183, 170, 0.35);
+
+      transform: translateY(-1px);
+    }
+
+    .summary-label {
+      display: block;
+
+      margin-bottom: 0.4rem;
+
+      color: var(--muted);
+
+      font-size: 0.68rem;
+
+      font-weight: 850;
+
+      text-transform: uppercase;
+
+      letter-spacing: 0.06em;
+    }
+
+    .summary-value {
+      color: var(--text-dark);
+
+      font-size: 0.8rem;
+
+      font-weight: 750;
+
+      word-break: break-word;
+    }
+
+    /* =========================================================
+       TABLE
+    ========================================================= */
+
+    .table-wrapper {
+      overflow-x: auto;
+
+      margin-top: 0.8rem;
+
+      border: 1px solid var(--border);
+
+      border-radius: 16px;
+
+      box-shadow:
+        0 5px 18px rgba(16, 42, 67, 0.035);
+    }
+
+    table {
+      width: 100%;
+
+      border-collapse: collapse;
+
+      background: var(--surface);
+
+      font-size: 0.8rem;
+    }
+
+    th,
+    td {
+      padding: 0.8rem 0.9rem;
+
+      text-align: left;
+
+      border-bottom: 1px solid #edf2f5;
+
+      vertical-align: top;
+    }
+
+    th {
+      background:
+        linear-gradient(
+          135deg,
+          #f8fbfd,
+          #f3f8fa
+        );
+
+      color: var(--muted);
+
+      font-size: 0.68rem;
+
+      font-weight: 850;
+
+      text-transform: uppercase;
+
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr {
+      transition: background 0.18s ease;
+    }
+
+    tbody tr:hover {
+      background: #fbfefe;
+    }
+
+    td:first-child {
+      color: var(--text-dark);
+
+      font-weight: 750;
+    }
+
+    .mono {
+      font-family:
+        SFMono-Regular,
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+      font-size: 0.68rem;
+    }
+
+    /* =========================================================
+       DEPENDENCY BADGES
+    ========================================================= */
+
+    .dependency {
+      display: inline-flex;
+
+      padding: 0.4rem 0.55rem;
+
+      border-radius: 8px;
+
+      background: var(--blue-soft);
+
+      border: 1px solid rgba(67, 133, 245, 0.12);
+
+      color: #356dc9;
+
+      font-family:
+        SFMono-Regular,
+        Consolas,
+        monospace;
+
+      font-size: 0.68rem;
+
+      font-weight: 750;
+    }
+
+    /* =========================================================
+       TWO COLUMNS
+    ========================================================= */
+
+    .two-columns {
+      display: grid;
+
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+      gap: 1.2rem;
+    }
+
+    /* =========================================================
+       PIPELINE
+    ========================================================= */
+
+    .pipeline-card {
+      padding: 1.8rem;
+    }
+
+    .pipeline {
+      display: flex;
+
+      align-items: flex-start;
+
+      margin-top: 1.7rem;
+    }
+
+    .pipeline-stage {
+      flex: 1;
+
+      position: relative;
+
+      text-align: center;
+    }
+
+    .pipeline-stage:not(:last-child)::after {
+      content: "";
+
+      position: absolute;
+
+      top: 25px;
+
+      left: 70%;
+
+      width: 60%;
+
+      height: 2px;
+
+      background:
+        linear-gradient(
+          90deg,
+          var(--accent),
+          #cfdde5
+        );
+    }
+
+    .stage-icon {
+      position: relative;
+
+      z-index: 2;
+
+      display: grid;
+
+      place-items: center;
+
+      width: 50px;
+      height: 50px;
+
+      margin: auto;
+
+      border: 1px solid rgba(25, 183, 170, 0.22);
+
+      border-radius: 15px;
+
+      background: var(--accent-soft);
+
+      color: var(--accent-dark);
+
+      font-size: 0.82rem;
+
+      font-weight: 850;
+
+      box-shadow:
+        0 8px 20px rgba(25, 183, 170, 0.08);
+    }
+
+    .stage-icon.green {
+      background: var(--green-soft);
+
+      border-color: rgba(44, 166, 111, 0.20);
+
+      color: var(--green);
+    }
+
+    .stage-icon.purple {
+      background: var(--purple-soft);
+
+      border-color: rgba(128, 103, 232, 0.20);
+
+      color: var(--purple);
+    }
+
+    .stage-icon.orange {
+      background: var(--orange-soft);
+
+      border-color: rgba(242, 139, 95, 0.20);
+
+      color: var(--orange);
+    }
+
+    .stage-title {
+      margin-top: 0.7rem;
+
+      color: var(--text-dark);
+
+      font-size: 0.82rem;
+
+      font-weight: 800;
+    }
+
+    .stage-description {
+      max-width: 140px;
+
+      margin: 0.2rem auto 0;
+
+      color: var(--muted);
+
+      font-size: 0.7rem;
+    }
+
+    .gate {
+      display: inline-flex;
+
+      margin-top: 0.5rem;
+
+      padding: 0.35rem 0.55rem;
+
+      border-radius: 999px;
+
+      background: var(--green-soft);
+
+      color: var(--green);
+
+      font-size: 0.62rem;
+
+      font-weight: 850;
+
+      text-transform: uppercase;
+    }
+
+    /* =========================================================
+       UML
+    ========================================================= */
+
+    .uml-container {
+      margin-top: 1.4rem;
+
+      overflow-x: auto;
+
+      border: 1px solid var(--border);
+
+      border-radius: 18px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #f8fbfd,
+          #f2f7f9
+        );
+    }
+
+    .uml {
+      min-width: 850px;
+
+      padding: 1.5rem;
+    }
+
+    .uml-flow {
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 0;
+    }
+
+    .uml-node {
+      min-width: 130px;
+
+      padding: 0.9rem;
+
+      border: 1px solid var(--border);
+
+      border-radius: 14px;
+
+      background:
+        rgba(255, 255, 255, 0.95);
+
+      text-align: center;
+
+      box-shadow:
+        0 8px 22px rgba(16, 42, 67, 0.06);
+
+      transition:
+        transform 0.2s ease,
+        border-color 0.2s ease;
+    }
+
+    .uml-node:hover {
+      transform: translateY(-2px);
+
+      border-color: rgba(25, 183, 170, 0.35);
+    }
+
+    .uml-node strong {
+      display: block;
+
+      color: var(--text-dark);
+
+      font-size: 0.76rem;
+    }
+
+    .uml-node small {
+      display: block;
+
+      margin-top: 0.25rem;
+
+      color: var(--muted);
+
+      font-size: 0.64rem;
+    }
+
+    .uml-arrow {
+      padding: 0 0.75rem;
+
+      color: var(--accent-dark);
+
+      font-size: 1.15rem;
+
+      font-weight: 800;
+    }
+
+    /* =========================================================
+       CODE
+    ========================================================= */
+
+    .code {
+      overflow-x: auto;
+
+      margin-top: 1rem;
+
+      padding: 1.1rem;
+
+      border: 1px solid #16324a;
+
+      border-radius: 14px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #102a43,
+          #0b1f33
+        );
+
+      color: #d9f7f3;
+
+      font-family:
+        SFMono-Regular,
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+      font-size: 0.72rem;
+
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       TOOL LIST
+    ========================================================= */
+
+    .tool-list {
+      display: grid;
+
+      gap: 0;
+
+      padding: 0;
+
+      margin: 0.9rem 0 0;
+
+      list-style: none;
+    }
+
+    .tool-item {
+      display: grid;
+
+      grid-template-columns: 125px 1fr;
+
+      gap: 1rem;
+
+      padding: 0.85rem 0;
+
+      border-bottom: 1px solid #edf2f5;
+    }
+
+    .tool-item:last-child {
+      border-bottom: 0;
+    }
+
+    .tool-name {
+      color: var(--accent-dark);
+
+      font-size: 0.76rem;
+
+      font-weight: 850;
+    }
+
+    .tool-description {
+      color: #536b7e;
+
+      font-size: 0.76rem;
+    }
+
+    .tool-description strong {
+      color: var(--text-dark);
+    }
+
+    /* =========================================================
+       CALLOUT
+    ========================================================= */
+
+    .callout {
+      margin-top: 1.4rem;
+
+      padding: 1.1rem 1.25rem;
+
+      border-radius: 18px;
+
+      border: 1px solid rgba(67, 133, 245, 0.18);
+
+      background:
+        linear-gradient(
+          135deg,
+          var(--blue-soft),
+          #f5f8ff
+        );
+    }
+
+    .callout strong {
+      color: #356dc9;
+
+      font-size: 0.88rem;
+    }
+
+    .callout p {
+      margin: 0.35rem 0 0;
+
+      color: #49658b;
+
+      font-size: 0.78rem;
+    }
+
+    /* =========================================================
+       LISTS
+    ========================================================= */
+
+    .card ul:not(.tool-list) {
+      margin: 0.9rem 0 0;
+
+      padding-left: 1.25rem;
+
+      color: #536b7e;
+
+      font-size: 0.78rem;
+    }
+
+    .card ul:not(.tool-list) li {
+      margin: 0.35rem 0;
+    }
+
+    /* =========================================================
+       FOOTER
+    ========================================================= */
+
+    footer {
+      padding: 2rem 0;
+
+      background: transparent;
+
+      border-top: 1px solid var(--border);
+
+      color: var(--muted);
+
+      font-size: 0.75rem;
+    }
+
+    footer .container {
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      gap: 1.2rem;
+    }
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================= */
+
+    @media (max-width: 1050px) {
+      .kpi-grid,
+      .summary-grid {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+
+      .pipeline {
+        min-width: 800px;
+      }
+
+      .pipeline-wrapper {
+        overflow-x: auto;
+      }
+    }
+
+    @media (max-width: 800px) {
+      .header-inner {
+        flex-direction: column;
+      }
+
+      .status-box {
+        width: 100%;
+      }
+
+      .two-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .pipeline-card {
+        overflow: hidden;
+      }
+
+      .pipeline {
+        min-width: 720px;
+      }
+
+      .uml {
+        min-width: 800px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .container {
+        width: min(100% - 28px, 1220px);
+      }
+
+      .header-inner {
+        padding: 3rem 0 2.2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      .intro {
+        font-size: 0.95rem;
+      }
+
+      .kpi-grid,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-header {
+        align-items: flex-start;
+
+        flex-direction: column;
+      }
+
+      .section-count {
+        white-space: normal;
+      }
+
+      .tool-item {
+        grid-template-columns: 1fr;
+
+        gap: 0.25rem;
+      }
+
+      .table-wrapper {
+        border-radius: 14px;
+      }
+
+      th,
+      td {
+        padding: 0.7rem;
+      }
+
+      footer .container {
+        flex-direction: column;
+
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
+
 <body>
+
+  <!-- =======================================================
+       HEADER
+  ======================================================== -->
+
   <header>
-    <h1>Audit HRFlow & Architecture Pipeline</h1>
-    <p class="intro">Rapport généré automatiquement à partir de l’analyse du dépôt existant. Le document contient l’état du code, des dépendances, de la CI/CD et une architecture pipeline en 5 étapes avec un schéma UML.</p>
-  </header>
-  <main>
-    <section class="grid">
-      <article class="card">
-        <h2>1. Synthèse du dépôt</h2>
-        <div class="summary-grid">
-          <div>
-            <p><span class="badge">Branches</span>main, dev, feature/recrutement-v2</p>
-          </div>
-          <div>
-            <p><span class="badge">Pipeline</span>GitHub Actions</p>
-          </div>
-          <div>
-            <p><span class="badge">Remote</span>https://github.com/leapauc/Bloc3-DevOps-NovaTech.git</p>
-          </div>
-          <div>
-            <p><span class="badge">Lockfile</span>package-lock.json</p>
-          </div>
-        </div>
-        <p>Le projet est un mono-repo Node/React avec un ensemble de services backend dans `services/`, un front React dans `frontend/`, et une gateway API. Le pipeline CI/CD existant est limité à la branche `main` et repose sur un déploiement SSH vers un hôte de production.</p>
-      </article>
-      <article class="card">
-        <h2>2. Historique Git récent</h2>
-        <p>Les commits les plus récents montrent une focalisation sur la centralisation des dépendances, la documentation et la stabilisation des services.</p>
-        <table>
-          <thead>
-            <tr><th>Commit</th><th>Message</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>cfc1de6</td><td>chore-refacto(deps): gather all dependencies in a main package.json at the root of the project</td></tr>
-            <tr><td>fefc6c0</td><td>test: push to test pipeline</td></tr>
-            <tr><td>93d8695</td><td>docs: guide de lecture de l'historique Git pour l'équipe entrante</td></tr>
-            <tr><td>f5ca946</td><td>docs: audit Partech + consignes pour l'équipe entrante</td></tr>
-            <tr><td>64923e0</td><td>fix(paie): calcul heures supplémentaires manquant</td></tr>
-            <tr><td>5e99ddc</td><td>ci: pipeline de déploiement GitHub Actions</td></tr>
-          </tbody>
-        </table>
-      </article>
-    </section>
+    <div class="container header-inner">
 
-    <section class="card">
-      <h2>3. Dépendances principales</h2>
-      <p>Le dépôt utilise une configuration centralisée pour la plupart des packages Node/Web, avec un seul `package-lock.json` à la racine.</p>
-      <table>
-        <thead>
-          <tr><th>Dépendance</th><th>Version</th><th>Usage probable</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>axios</td><td>^1.4.0</td><td>Appels API HTTP côté client ou backend</td></tr>
-          <tr><td>bcrypt</td><td>^6.0.0</td><td>Hachage des mots de passe</td></tr>
-          <tr><td>express</td><td>^4.18.0</td><td>Serveurs backend</td></tr>
-          <tr><td>http-proxy-middleware</td><td>^2.0.6</td><td>Proxy vers APIs depuis React</td></tr>
-          <tr><td>jsonwebtoken</td><td>^9.0.3</td><td>JWT pour auth service</td></tr>
-          <tr><td>multer</td><td>^1.4.5-lts.1</td><td>Upload de fichiers multipart</td></tr>
-          <tr><td>pg</td><td>^8.11.0</td><td>Connexion PostgreSQL</td></tr>
-          <tr><td>react / react-dom</td><td>^18.2.0</td><td>Interface frontend</td></tr>
-          <tr><td>react-router-dom</td><td>^6.8.0</td><td>Routage frontend</td></tr>
-          <tr><td>react-scripts</td><td>5.0.1</td><td>Build et développement React</td></tr>
-          <tr><td>nodemon</td><td>^3.1.14</td><td>Redémarrage automatique en dev</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section class="card diagram">
-      <h2>4. Architecture du pipeline — 5 stages</h2>
-      <p>Le pipeline actuel et proposé est résumé sur une seule ligne pour une lecture instantanée :</p>
-      <div class="pipeline-line">
-        <div class="pipeline-step"><span></span>Source</div>
-        <div class="arrow">→</div>
-        <div class="pipeline-step"><span></span>Setup</div>
-        <div class="arrow">→</div>
-        <div class="pipeline-step"><span></span>Build</div>
-        <div class="arrow">→</div>
-        <div class="pipeline-step"><span></span>Validation</div>
-        <div class="arrow">→</div>
-        <div class="pipeline-step"><span></span>Deploy</div>
-      </div>
       <div>
-        <p><strong>UML simplifié</strong> : le flux reste linéaire, avec une étape de validation recommandée avant déploiement. La version une ligne met en évidence la progression claire de la CI vers la production.</p>
-        <pre class="code">@startuml
-Skinparam backgroundColor transparent
-skinparam rectangle {
-  BackgroundColor #102e4a
-  BorderColor #237baf
-  RoundCorner 22
-}
-source --> setup : push main
-setup --> build : node 16, npm install
-build --> validation : frontend build
-validation --> deploy : tests / checks
-deploy --> production : ssh + pm2
-@enduml</pre>
-      </div>
-    </section>
 
-    <section class="card">
-      <h2>5. Choix d'outils justifiés</h2>
-      <ul class="stage-list">
-        <li><strong>Source</strong> — GitHub : centralisation du code et déclenchement `push`. GitHub Actions est cohérent avec l'hébergement du dépôt.</li>
-        <li><strong>Setup</strong> — `actions/checkout@v2` et `actions/setup-node@v2` : standard pour récupérer le code et préparer l'environnement Node de manière reproductible.</li>
-        <li><strong>Build</strong> — `npm install` + `cd frontend && npm run build` : permet de construire le front React et de préparer le runtime backend. Le choix de `npm` est naturel puisque le projet contient un `package-lock.json` et des scripts racines partagés.</li>
-        <li><strong>Validation</strong> — tests actuellement désactivés, mais le pipeline doit évoluer vers `npm test` et l’ajout de contrôles statiques (lint / audit de sécurité) pour réduire les risques avant déploiement.</li>
-        <li><strong>Deploy</strong> — `appleboy/ssh-action@master` + `pm2 restart all` : déploiement simple via SSH vers une machine distante. Ce modèle convient pour un PoC ou un environnement d’hébergement géré, mais il faudra envisager un mécanisme plus sécurisé (`SSH key`, `deploy user`, ou `GitHub Deploy Keys`) et un déclencheur multi-environnement si le projet monte en charge.</li>
-      </ul>
-      <p>Recommandation : ajouter une étape de test fonctionnel avant `Deploy`, et transformer la commande SSH en déploiement immutable si l’infrastructure évolue vers Kubernetes ou un fournisseur cloud.</p>
-    </section>
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          HRFlow · Architecture & CI/CD
+        </div>
+
+        <h1>Audit HRFlow</h1>
+
+        <p class="intro">
+          Rapport technique du dépôt existant, de ses dépendances et de sa
+          chaîne CI/CD, accompagné d'une architecture pipeline cible en
+          cinq étapes.
+        </p>
+
+        <div class="meta">
+          <span class="tag">📦 Mono-repo</span>
+          <span class="tag">⚙ GitHub Actions</span>
+          <span class="tag">🟢 Node / React</span>
+          <span class="tag">🔀 3 branches</span>
+        </div>
+
+      </div>
+
+      <div class="status-box">
+        <div class="status-label">
+          Architecture proposée
+        </div>
+
+        <div class="status-value">
+          5 stages
+        </div>
+
+        <div class="status-description">
+          Source → Setup → Build → Validation → Deploy
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- =======================================================
+       NAVIGATION
+  ======================================================== -->
+
+  <nav class="nav">
+
+    <div class="container nav-inner">
+
+      <a href="#overview">Vue d'ensemble</a>
+      <a href="#git">Git</a>
+      <a href="#dependencies">Dépendances</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#tools">Outils</a>
+      <a href="#recommendations">Recommandations</a>
+
+    </div>
+
+  </nav>
+
+
+  <main>
+
+    <div class="container">
+
+
+      <!-- =====================================================
+           OVERVIEW
+      ====================================================== -->
+
+      <section id="overview">
+
+        <div class="kpi-grid">
+
+          <div class="kpi">
+
+            <div class="kpi-top">
+              <span class="kpi-label">Branches</span>
+              <span class="kpi-icon blue">⑂</span>
+            </div>
+
+            <div class="kpi-value">3</div>
+
+            <div class="kpi-description">
+              main · dev · feature/recrutement-v2
+            </div>
+
+          </div>
+
+
+          <div class="kpi">
+
+            <div class="kpi-top">
+              <span class="kpi-label">Stages pipeline</span>
+              <span class="kpi-icon green">→</span>
+            </div>
+
+            <div class="kpi-value">5</div>
+
+            <div class="kpi-description">
+              Source → Setup → Build → Validation → Deploy
+            </div>
+
+          </div>
+
+
+          <div class="kpi">
+
+            <div class="kpi-top">
+              <span class="kpi-label">Dépendances clés</span>
+              <span class="kpi-icon purple">◇</span>
+            </div>
+
+            <div class="kpi-value">11+</div>
+
+            <div class="kpi-description">
+              Runtime, frontend et outils de développement
+            </div>
+
+          </div>
+
+
+          <div class="kpi">
+
+            <div class="kpi-top">
+              <span class="kpi-label">Lockfile</span>
+              <span class="kpi-icon orange">✓</span>
+            </div>
+
+            <div class="kpi-value">1</div>
+
+            <div class="kpi-description">
+              package-lock.json centralisé à la racine
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="section-header" style="margin-top:2.1rem">
+
+          <div>
+            <h2 class="section-title">
+              Synthèse du dépôt
+            </h2>
+
+            <p class="section-description">
+              Vue générale du projet et de son organisation actuelle.
+            </p>
+          </div>
+
+        </div>
+
+
+        <article class="card">
+
+          <div class="summary-grid">
+
+            <div class="summary-item">
+
+              <span class="summary-label">
+                Branches
+              </span>
+
+              <span class="summary-value">
+                main, dev, feature/recrutement-v2
+              </span>
+
+            </div>
+
+
+            <div class="summary-item">
+
+              <span class="summary-label">
+                Pipeline
+              </span>
+
+              <span class="summary-value">
+                GitHub Actions
+              </span>
+
+            </div>
+
+
+            <div class="summary-item">
+
+              <span class="summary-label">
+                Remote
+              </span>
+
+              <span class="summary-value mono">
+                github.com/leapauc/Bloc3-DevOps-NovaTech
+              </span>
+
+            </div>
+
+
+            <div class="summary-item">
+
+              <span class="summary-label">
+                Lockfile
+              </span>
+
+              <span class="summary-value">
+                package-lock.json
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div class="callout">
+
+            <strong>
+              Structure détectée
+            </strong>
+
+            <p>
+              Le projet est organisé comme un mono-repo Node/React avec des
+              services backend dans <code>services/</code>, un frontend React
+              dans <code>frontend/</code> et une gateway API. Le pipeline
+              historique repose sur GitHub Actions et un déploiement SSH
+              vers un hôte de production.
+            </p>
+
+          </div>
+
+        </article>
+
+      </section>
+
+
+      <!-- =====================================================
+           GIT
+      ====================================================== -->
+
+      <section id="git">
+
+        <div class="section-header">
+
+          <div>
+            <h2 class="section-title">
+              Historique Git récent
+            </h2>
+
+            <p class="section-description">
+              Les derniers commits montrent l'évolution de la structure,
+              des dépendances et de la CI/CD.
+            </p>
+          </div>
+
+          <span class="section-count">
+            6 commits analysés
+          </span>
+
+        </div>
+
+
+        <article class="card">
+
+          <div class="table-wrapper">
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>Commit</th>
+                  <th>Message</th>
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr>
+                  <td class="mono">cfc1de6</td>
+
+                  <td>
+                    chore-refacto(deps): gather all dependencies in a
+                    main package.json at the root of the project
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td class="mono">fefc6c0</td>
+
+                  <td>
+                    test: push to test pipeline
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td class="mono">93d8695</td>
+
+                  <td>
+                    docs: guide de lecture de l'historique Git pour
+                    l'équipe entrante
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td class="mono">f5ca946</td>
+
+                  <td>
+                    docs: audit Partech + consignes pour l'équipe entrante
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td class="mono">64923e0</td>
+
+                  <td>
+                    fix(paie): calcul heures supplémentaires manquant
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td class="mono">5e99ddc</td>
+
+                  <td>
+                    ci: pipeline de déploiement GitHub Actions
+                  </td>
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </article>
+
+      </section>
+
+
+      <!-- =====================================================
+           DEPENDENCIES
+      ====================================================== -->
+
+      <section id="dependencies">
+
+        <div class="section-header">
+
+          <div>
+            <h2 class="section-title">
+              Dépendances principales
+            </h2>
+
+            <p class="section-description">
+              Packages structurants du mono-repo et rôle identifié.
+            </p>
+          </div>
+
+          <span class="section-count">
+            package-lock.json racine
+          </span>
+
+        </div>
+
+
+        <article class="card">
+
+          <div class="table-wrapper">
+
+            <table>
+
+              <thead>
+
+                <tr>
+                  <th>Dépendance</th>
+                  <th>Version</th>
+                  <th>Usage probable</th>
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr>
+                  <td>
+                    <span class="dependency">axios</span>
+                  </td>
+
+                  <td class="mono">^1.4.0</td>
+
+                  <td>
+                    Appels API HTTP côté client ou backend
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">bcrypt</span>
+                  </td>
+
+                  <td class="mono">^6.0.0</td>
+
+                  <td>
+                    Hachage des mots de passe
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">express</span>
+                  </td>
+
+                  <td class="mono">^4.18.0</td>
+
+                  <td>
+                    Serveurs backend
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">http-proxy-middleware</span>
+                  </td>
+
+                  <td class="mono">^2.0.6</td>
+
+                  <td>
+                    Proxy vers les APIs
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">jsonwebtoken</span>
+                  </td>
+
+                  <td class="mono">^9.0.3</td>
+
+                  <td>
+                    Gestion des JWT
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">multer</span>
+                  </td>
+
+                  <td class="mono">^1.4.5-lts.1</td>
+
+                  <td>
+                    Upload multipart
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">pg</span>
+                  </td>
+
+                  <td class="mono">^8.11.0</td>
+
+                  <td>
+                    Connexion PostgreSQL
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">react</span>
+                  </td>
+
+                  <td class="mono">^18.2.0</td>
+
+                  <td>
+                    Interface frontend
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">react-dom</span>
+                  </td>
+
+                  <td class="mono">^18.2.0</td>
+
+                  <td>
+                    Rendu frontend
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">react-router-dom</span>
+                  </td>
+
+                  <td class="mono">^6.8.0</td>
+
+                  <td>
+                    Routage frontend
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">react-scripts</span>
+                  </td>
+
+                  <td class="mono">5.0.1</td>
+
+                  <td>
+                    Build React
+                  </td>
+                </tr>
+
+
+                <tr>
+                  <td>
+                    <span class="dependency">nodemon</span>
+                  </td>
+
+                  <td class="mono">^3.1.14</td>
+
+                  <td>
+                    Développement local
+                  </td>
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </article>
+
+      </section>
+
+
+      <!-- =====================================================
+           PIPELINE
+      ====================================================== -->
+
+      <section id="pipeline">
+
+        <div class="section-header">
+
+          <div>
+            <h2 class="section-title">
+              Architecture du pipeline
+            </h2>
+
+            <p class="section-description">
+              Pipeline cible en cinq étapes avec contrôle de passage entre
+              chaque phase.
+            </p>
+          </div>
+
+          <span class="section-count">
+            5 stages
+          </span>
+
+        </div>
+
+
+        <article class="card pipeline-card">
+
+          <h3>
+            Flux de livraison
+          </h3>
+
+          <p>
+            La chaîne de livraison suit une progression linéaire :
+            chaque étape doit être validée avant de transmettre l'exécution
+            à la suivante.
+          </p>
+
+
+          <div class="pipeline-wrapper">
+
+            <div class="pipeline">
+
+
+              <div class="pipeline-stage">
+
+                <div class="stage-icon">
+                  01
+                </div>
+
+                <div class="stage-title">
+                  Source
+                </div>
+
+                <div class="stage-description">
+                  Push GitHub et déclenchement du workflow
+                </div>
+
+                <span class="gate">
+                  Trigger
+                </span>
+
+              </div>
+
+
+              <div class="pipeline-stage">
+
+                <div class="stage-icon green">
+                  02
+                </div>
+
+                <div class="stage-title">
+                  Setup
+                </div>
+
+                <div class="stage-description">
+                  Checkout + Node + dépendances
+                </div>
+
+                <span class="gate">
+                  Reproductible
+                </span>
+
+              </div>
+
+
+              <div class="pipeline-stage">
+
+                <div class="stage-icon">
+                  03
+                </div>
+
+                <div class="stage-title">
+                  Build
+                </div>
+
+                <div class="stage-description">
+                  Compilation et préparation des artefacts
+                </div>
+
+                <span class="gate">
+                  Build OK
+                </span>
+
+              </div>
+
+
+              <div class="pipeline-stage">
+
+                <div class="stage-icon purple">
+                  04
+                </div>
+
+                <div class="stage-title">
+                  Validation
+                </div>
+
+                <div class="stage-description">
+                  Tests, lint et sécurité
+                </div>
+
+                <span class="gate">
+                  Quality Gate
+                </span>
+
+              </div>
+
+
+              <div class="pipeline-stage">
+
+                <div class="stage-icon orange">
+                  05
+                </div>
+
+                <div class="stage-title">
+                  Deploy
+                </div>
+
+                <div class="stage-description">
+                  Livraison contrôlée vers l'environnement cible
+                </div>
+
+                <span class="gate">
+                  Release
+                </span>
+
+              </div>
+
+
+            </div>
+
+          </div>
+
+
+          <div class="uml-container">
+
+            <div class="uml">
+
+              <div class="uml-flow">
+
+                <div class="uml-node">
+                  <strong>GitHub</strong>
+                  <small>push main</small>
+                </div>
+
+                <div class="uml-arrow">→</div>
+
+                <div class="uml-node">
+                  <strong>Setup</strong>
+                  <small>checkout + Node</small>
+                </div>
+
+                <div class="uml-arrow">→</div>
+
+                <div class="uml-node">
+                  <strong>Build</strong>
+                  <small>npm build</small>
+                </div>
+
+                <div class="uml-arrow">→</div>
+
+                <div class="uml-node">
+                  <strong>Validation</strong>
+                  <small>tests + audit</small>
+                </div>
+
+                <div class="uml-arrow">→</div>
+
+                <div class="uml-node">
+                  <strong>Deploy</strong>
+                  <small>SSH / release</small>
+                </div>
+
+                <div class="uml-arrow">→</div>
+
+                <div class="uml-node">
+                  <strong>Production</strong>
+                  <small>PM2</small>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="callout">
+
+            <strong>
+              Évolution recommandée
+            </strong>
+
+            <p>
+              Le pipeline historique mélangeait build et déploiement avec
+              des contrôles limités. La cible introduit une vraie étape de
+              validation permettant de bloquer la livraison en cas d'échec
+              des tests, du lint ou d'un contrôle de sécurité.
+            </p>
+
+          </div>
+
+        </article>
+
+      </section>
+
+
+      <!-- =====================================================
+           TOOLS
+      ====================================================== -->
+
+      <section id="tools">
+
+        <div class="section-header">
+
+          <div>
+            <h2 class="section-title">
+              Choix des outils
+            </h2>
+
+            <p class="section-description">
+              Justification des principaux composants du pipeline.
+            </p>
+          </div>
+
+        </div>
+
+
+        <article class="card">
+
+          <ul class="tool-list">
+
+
+            <li class="tool-item">
+
+              <div class="tool-name">
+                Source
+              </div>
+
+              <div class="tool-description">
+                <strong>GitHub</strong> centralise le code et permet de
+                déclencher les workflows sur les événements Git. GitHub
+                Actions reste cohérent avec l'hébergement du dépôt.
+              </div>
+
+            </li>
+
+
+            <li class="tool-item">
+
+              <div class="tool-name">
+                Setup
+              </div>
+
+              <div class="tool-description">
+                <strong>actions/checkout</strong> et
+                <strong>actions/setup-node</strong> permettent de préparer
+                un environnement Node reproductible.
+              </div>
+
+            </li>
+
+
+            <li class="tool-item">
+
+              <div class="tool-name">
+                Build
+              </div>
+
+              <div class="tool-description">
+                <strong>npm</strong> est utilisé pour installer les
+                dépendances et construire le frontend React. Le
+                <strong>package-lock.json</strong> permet de verrouiller
+                les versions.
+              </div>
+
+            </li>
+
+
+            <li class="tool-item">
+
+              <div class="tool-name">
+                Validation
+              </div>
+
+              <div class="tool-description">
+                Les tests automatisés, le lint et l'audit de sécurité
+                doivent devenir des quality gates obligatoires avant toute
+                livraison.
+              </div>
+
+            </li>
+
+
+            <li class="tool-item">
+
+              <div class="tool-name">
+                Deploy
+              </div>
+
+              <div class="tool-description">
+                Le déploiement SSH reste possible pour l'infrastructure
+                actuelle, mais doit privilégier une <strong>clé SSH</strong>,
+                un utilisateur dédié et des mécanismes de rollback.
+              </div>
+
+            </li>
+
+
+          </ul>
+
+        </article>
+
+      </section>
+
+
+      <!-- =====================================================
+           RECOMMENDATIONS
+      ====================================================== -->
+
+      <section id="recommendations">
+
+        <div class="section-header">
+
+          <div>
+            <h2 class="section-title">
+              Recommandations
+            </h2>
+
+            <p class="section-description">
+              Évolutions prioritaires pour augmenter la robustesse du pipeline.
+            </p>
+          </div>
+
+        </div>
+
+
+        <div class="two-columns">
+
+
+          <article class="card">
+
+            <h3>
+              🛡 Quality Gates
+            </h3>
+
+            <p>
+              Ajouter une étape de validation obligatoire avant le déploiement :
+            </p>
+
+            <ul>
+              <li>Tests unitaires</li>
+              <li>Tests d'intégration</li>
+              <li>Lint</li>
+              <li>Audit des dépendances</li>
+              <li>SAST</li>
+            </ul>
+
+          </article>
+
+
+          <article class="card">
+
+            <h3>
+              🚀 Déploiement
+            </h3>
+
+            <p>
+              Faire évoluer le modèle SSH actuel vers un déploiement plus sûr :
+            </p>
+
+            <ul>
+              <li>Clé SSH dédiée</li>
+              <li>Utilisateur de déploiement dédié</li>
+              <li>Secrets GitHub Actions</li>
+              <li>Health-check après release</li>
+              <li>Rollback automatique</li>
+            </ul>
+
+          </article>
+
+
+          <article class="card">
+
+            <h3>
+              🌍 Multi-environnement
+            </h3>
+
+            <p>
+              Séparer explicitement les environnements :
+            </p>
+
+            <ul>
+              <li>Development</li>
+              <li>Staging</li>
+              <li>Production</li>
+            </ul>
+
+            <p>
+              La promotion vers production doit dépendre de la réussite du
+              staging.
+            </p>
+
+          </article>
+
+
+          <article class="card">
+
+            <h3>
+              📦 Évolution infrastructure
+            </h3>
+
+            <p>
+              Si le projet monte en charge, envisager progressivement :
+            </p>
+
+            <ul>
+              <li>Images Docker immuables</li>
+              <li>Registry d'images</li>
+              <li>Déploiement versionné</li>
+              <li>Infrastructure as Code</li>
+              <li>Orchestration cloud / Kubernetes si nécessaire</li>
+            </ul>
+
+          </article>
+
+
+        </div>
+
+
+        <div class="callout">
+
+          <strong>
+            Priorité recommandée
+          </strong>
+
+          <p>
+            La priorité n'est pas de complexifier immédiatement l'infrastructure.
+            Le meilleur gain à court terme consiste à sécuriser le pipeline
+            existant : tests obligatoires → audit sécurité → staging →
+            validation → déploiement par clé → health-check → rollback.
+          </p>
+
+        </div>
+
+      </section>
+
+    </div>
+
   </main>
+
+
   <footer>
-    Rapport généré pour le dépôt HRFlow — architecture pipeline proposée en 5 stages.
+
+    <div class="container">
+
+      <span>
+        HRFlow · Audit & Architecture Pipeline
+      </span>
+
+      <span>
+        Rapport technique · Architecture cible 5 stages
+      </span>
+
+    </div>
+
   </footer>
+
 </body>
 </html>

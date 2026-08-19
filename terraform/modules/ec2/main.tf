@@ -76,78 +76,6 @@ resource "aws_security_group" "k3s" {
   description = "Security Group for K3s EC2"
   vpc_id      = var.vpc_id
 
-  # SSH
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_allowed_cidr]
-  }
-
-  # Kubernetes API (VPC only)
-  ingress {
-    description = "Kubernetes API"
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  # K3s Flannel VXLAN (VPC only)
-  ingress {
-    description = "K3s Flannel VXLAN"
-    from_port   = 8472
-    to_port     = 8472
-    protocol    = "udp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  # HTTP (VPC only)
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  # Grafana (NodePort)
-  ingress {
-    description = "Grafana"
-    from_port   = 30000
-    to_port     = 30000
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_allowed_cidr]
-  }
-
-  # Prometheus (NodePort)
-  ingress {
-    description = "Prometheus"
-    from_port   = 30090
-    to_port     = 30090
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_allowed_cidr]
-  }
-
-  # Node Exporter (VPC only)
-  ingress {
-    description = "Node Exporter"
-    from_port   = 9100
-    to_port     = 9100
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  # Kubelet (VPC only)
-  ingress {
-    description = "Kubelet"
-    from_port   = 10250
-    to_port     = 10250
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
   # Outbound
   egress {
     description = "Internet outbound"
@@ -162,6 +90,83 @@ resource "aws_security_group" "k3s" {
   }
 }
 
+# Les règles d'ingress sont déclarées en ressources séparées (et non en blocs
+# `ingress {}` inline sur l'aws_security_group) car main.tf ajoute par ailleurs
+# sa propre règle (alb_to_ec2_http) sur ce même security group. Mélanger les deux
+# styles fait perdre à Terraform le contrôle de la liste : le bloc inline se
+# comporte comme la liste autoritaire et supprime silencieusement toute règle
+# ajoutée par un aws_security_group_rule externe au prochain apply.
+
+resource "aws_security_group_rule" "ssh" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "SSH"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_allowed_cidr]
+}
+
+resource "aws_security_group_rule" "k8s_api" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "Kubernetes API (VPC only)"
+  from_port         = 6443
+  to_port           = 6443
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+resource "aws_security_group_rule" "flannel_vxlan" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "K3s Flannel VXLAN (VPC only)"
+  from_port         = 8472
+  to_port           = 8472
+  protocol          = "udp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+resource "aws_security_group_rule" "grafana" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "Grafana (NodePort)"
+  from_port         = 30000
+  to_port           = 30000
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_allowed_cidr]
+}
+
+resource "aws_security_group_rule" "prometheus" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "Prometheus (NodePort)"
+  from_port         = 30090
+  to_port           = 30090
+  protocol          = "tcp"
+  cidr_blocks       = [var.ssh_allowed_cidr]
+}
+
+resource "aws_security_group_rule" "node_exporter" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "Node Exporter (VPC only)"
+  from_port         = 9100
+  to_port           = 9100
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+resource "aws_security_group_rule" "kubelet" {
+  type              = "ingress"
+  security_group_id = aws_security_group.k3s.id
+  description       = "Kubelet (VPC only)"
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
 # ============================================================
 # EC2 - K3S SERVER
 # ============================================================
@@ -170,6 +175,12 @@ resource "aws_instance" "k3s" {
   instance_type = var.instance_type
   subnet_id     = var.public_subnet_id
   key_name      = var.key_name
+
+  # Par défaut, l'AWS provider ne remplace PAS l'instance quand user_data change
+  # (elle ne se réexécute pas non plus sur une instance déjà démarrée) : un
+  # correctif dans le script d'installation resterait donc silencieusement sans
+  # effet sur l'instance déjà en place tant qu'on ne force pas ce remplacement.
+  user_data_replace_on_change = true
 
   # ----------------------------------------------------------
   # IAM / SSM
@@ -181,7 +192,7 @@ resource "aws_instance" "k3s" {
   # NETWORK
   # ----------------------------------------------------------
 
-  vpc_security_group_ids = [aws_security_group.k3s.id]
+  vpc_security_group_ids      = [aws_security_group.k3s.id]
   associate_public_ip_address = true
 
   root_block_device {
@@ -231,15 +242,25 @@ echo "============================================================"
 echo "INSTALLING AWS SSM AGENT"
 echo "============================================================"
 
-if ! command -v amazon-ssm-agent >/dev/null 2>&1; then
+if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
   snap install amazon-ssm-agent --classic
 fi
 
-systemctl enable amazon-ssm-agent
-systemctl restart amazon-ssm-agent
+# Le paquet snap Ubuntu (images cloud 24.04) enregistre l'agent sous ce nom
+# d'unité, pas "amazon-ssm-agent.service" (qui n'existe que pour le paquet
+# .deb historique). On détecte le vrai nom pour rester robuste si une future
+# AMI revient à l'agent packagé en .deb.
+SSM_UNIT="snap.amazon-ssm-agent.amazon-ssm-agent.service"
+if ! systemctl list-unit-files "$SSM_UNIT" --no-legend 2>/dev/null | grep -q .; then
+  SSM_UNIT="amazon-ssm-agent.service"
+fi
+echo "Unité systemd détectée pour l'agent SSM : $SSM_UNIT"
+
+systemctl enable "$SSM_UNIT"
+systemctl restart "$SSM_UNIT"
 
 echo "SSM Agent status:"
-systemctl status amazon-ssm-agent --no-pager || true
+systemctl status "$SSM_UNIT" --no-pager || true
 
 # ============================================================
 # SWAP
@@ -386,11 +407,15 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 
 # --- DOWNLOAD DASHBOARD 15757 JSON ---
-echo "============================================================"
-echo "DOWNLOADING GRAFANA DASHBOARD 15757"
-echo "============================================================"
+echo "Downloading Grafana dashboard 15757..."
 mkdir -p /tmp/dashboards
 curl -s https://grafana.com/api/dashboards/15757/revisions/43/download/ -o /tmp/dashboards/15757.json
+
+# --- WRITE CUSTOM HRFLOW DASHBOARD (latence P99, taux d'erreur, CPU/RAM, saturation) ---
+echo "Writing HRFlow observability dashboard..."
+cat > /tmp/dashboards/hrflow-observability.json <<'JSONEOF'
+${file("${path.module}/../../dashboards/hrflow-observability.json")}
+JSONEOF
 
 # --- INSTALL KUBE-PROMETHEUS-STACK ---
 echo "============================================================"
@@ -418,9 +443,9 @@ helm upgrade --install kube-prometheus-stack \
   --set prometheus.prometheusSpec.resources.limits.cpu=700m \
   --set prometheus.prometheusSpec.resources.limits.memory=768Mi \
   --set grafana.resources.requests.cpu=100m \
-  --set grafana.resources.requests.memory=128Mi \
+  --set grafana.resources.requests.memory=256Mi \
   --set grafana.resources.limits.cpu=500m \
-  --set grafana.resources.limits.memory=384Mi \
+  --set grafana.resources.limits.memory=768Mi \
   --set alertmanager.alertmanagerSpec.resources.requests.cpu=25m \
   --set alertmanager.alertmanagerSpec.resources.requests.memory=32Mi \
   --set alertmanager.alertmanagerSpec.resources.limits.cpu=100m \
@@ -433,10 +458,43 @@ helm upgrade --install kube-prometheus-stack \
   --set prometheus-node-exporter.resources.requests.memory=24Mi \
   --set prometheus-node-exporter.resources.limits.cpu=100m \
   --set prometheus-node-exporter.resources.limits.memory=64Mi \
-  --set grafana.dashboards.default.15757.json="$(base64 -w 0 /tmp/dashboards/15757.json)" \
   --wait=false
 
 echo "kube-prometheus-stack installation submitted."
+
+# --- CUSTOM GRAFANA DASHBOARDS CONFIGMAP ---
+# grafana.dashboards.<provider>.json ne pose pas le label grafana_dashboard=1 surveillé
+# par le sidecar (vérifié dans le chart) : jamais chargé. ConfigMap manuel + label à la place.
+echo "Applying custom Grafana dashboards ConfigMap..."
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+k3s kubectl create configmap hrflow-custom-dashboards -n monitoring \
+  --from-file=/tmp/dashboards/15757.json \
+  --from-file=/tmp/dashboards/hrflow-observability.json \
+  --dry-run=client -o yaml \
+  | k3s kubectl label --local -f - grafana_dashboard=1 -o yaml \
+  | k3s kubectl apply -f -
+
+# --- PODMONITOR TRAEFIK (Traefik arrive plus tard au 1er déploiement CD, 0 pod matché
+# au départ, pas une erreur. Label "release" requis par podMonitorSelectorNilUsesHelmValues) ---
+echo "Applying Traefik PodMonitor..."
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+cat <<'YAMLEOF' | k3s kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: traefik
+  namespace: kube-system
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+YAMLEOF
 
 # --- WAIT FOR MONITORING PODS ---
 echo "============================================================"

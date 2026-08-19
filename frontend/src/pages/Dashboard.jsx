@@ -3,7 +3,7 @@ import axios from 'axios'
 import './Dashboard.css'
 
 const API_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:3000/api'
+  process.env.REACT_APP_API_URL || '/api'
 
 export default function Dashboard() {
   const [conges, setConges] = useState(null)

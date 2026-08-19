@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Plan de tests — HRFlow</title>
+
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --bg-soft: #eef5f8;
+      --card: #ffffff;
+      --text: #102a43;
+      --text-dark: #0b1f33;
+      --muted: #6b8296;
+
+      --accent: #19b7aa;
+      --accent-dark: #108c84;
+      --accent-soft: #e2f7f4;
+
+      --blue: #4385f5;
+      --blue-soft: #e9f0ff;
+
+      --purple: #8067e8;
+      --purple-soft: #eeeafd;
+
+      --orange: #f28b5f;
+      --orange-soft: #fff0e9;
+
+      --red: #df5b62;
+      --red-soft: #fdebed;
+
+      --green: #2ca66f;
+      --green-soft: #e7f7ef;
+
+      --border: #dce7ee;
+      --shadow: 0 20px 55px rgba(16, 42, 67, 0.08);
+      --shadow-hover: 0 24px 65px rgba(16, 42, 67, 0.13);
+
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(
+          circle at 10% 0%,
+          rgba(25, 183, 170, 0.10),
+          transparent 28%
+        ),
+        radial-gradient(
+          circle at 90% 10%,
+          rgba(67, 133, 245, 0.08),
+          transparent 30%
+        ),
+        linear-gradient(180deg, #f8fbfd 0%, #eef4f7 100%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* -------------------------
+       HEADER
+    ------------------------- */
+
+    header {
+      padding: 4.5rem 2rem 3rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: "";
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: rgba(25, 183, 170, 0.08);
+      filter: blur(2px);
+      top: -280px;
+      left: calc(50% - 210px);
+      pointer-events: none;
+    }
+
+    .header-content {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      border: 1px solid rgba(25, 183, 170, 0.18);
+      font-size: 0.82rem;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(25, 183, 170, 0.12);
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--text-dark);
+      font-size: clamp(2.4rem, 5vw, 4.2rem);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .title-highlight {
+      color: var(--accent-dark);
+    }
+
+    .intro {
+      max-width: 800px;
+      margin: 1.25rem auto 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 1.5rem;
+    }
+
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+      box-shadow: 0 6px 20px rgba(16,42,67,0.04);
+    }
+
+    .meta-pill strong {
+      color: var(--text);
+      margin-left: 0.3rem;
+    }
+
+    /* -------------------------
+       LAYOUT
+    ------------------------- */
+
+    main {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      padding: 2rem;
+      transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .card + .card {
+      margin-top: 1.5rem;
+    }
+
+    .section-number {
+      display: inline-flex;
+      width: 36px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 11px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-weight: 800;
+      font-size: 0.9rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .card h2 {
+      margin: 0 0 0.65rem;
+      color: var(--text-dark);
+      font-size: 1.65rem;
+      letter-spacing: -0.025em;
+    }
+
+    .card h3 {
+      color: var(--text-dark);
+      margin-top: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      color: var(--muted);
+    }
+
+    /* -------------------------
+       OBJECTIVE
+    ------------------------- */
+
+    .objective {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    .objective-main {
+      padding: 0.5rem 0;
+    }
+
+    .objective-side {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1.4rem;
+      border-radius: 20px;
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent-soft),
+          #f4fbff
+        );
+      border: 1px solid rgba(25,183,170,0.15);
+    }
+
+    .objective-side strong {
+      display: block;
+      color: var(--text-dark);
+      font-size: 1.15rem;
+      margin-bottom: 0.45rem;
+    }
+
+    /* -------------------------
+       PYRAMID
+    ------------------------- */
+
+    .pyramid-wrapper {
+      margin-top: 1.7rem;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .pyramid {
+      min-height: 440px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 1rem;
+    }
+
+    .pyramid-level {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      border-radius: 18px;
+      border: 1px solid transparent;
+      text-align: center;
+      padding: 0.8rem 1rem;
+      position: relative;
+      box-shadow: 0 10px 28px rgba(16,42,67,0.07);
+    }
+
+    .pyramid-level strong {
+      color: var(--text-dark);
+      font-size: 1rem;
+    }
+
+    .pyramid-level span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-top: 0.15rem;
+    }
+
+    .level-e2e {
+      width: 48%;
+      background: var(--orange-soft);
+      border-color: rgba(242,139,95,0.25);
+    }
+
+    .level-int {
+      width: 68%;
+      background: var(--blue-soft);
+      border-color: rgba(67,133,245,0.22);
+    }
+
+    .level-unit {
+      width: 88%;
+      background: var(--accent-soft);
+      border-color: rgba(25,183,170,0.22);
+    }
+
+    .pyramid-arrow {
+      color: var(--muted);
+      font-size: 1.1rem;
+    }
+
+    .level-description {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .level-card {
+      display: flex;
+      gap: 0.9rem;
+      padding: 1rem;
+      border-radius: 17px;
+      border: 1px solid var(--border);
+      background: #fbfdfe;
+    }
+
+    .level-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    .unit-icon {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+
+    .int-icon {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .e2e-icon {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    .level-card strong {
+      display: block;
+      color: var(--text-dark);
+      margin-bottom: 0.15rem;
+    }
+
+    .level-card p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    /* -------------------------
+       BADGES
+    ------------------------- */
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .badge-unit {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+
+    .badge-int {
+      background: var(--blue-soft);
+      color: #356dc9;
+    }
+
+    .badge-e2e {
+      background: var(--orange-soft);
+      color: #c9683f;
+    }
+
+    .badge-critical {
+      background: var(--red-soft);
+      color: #bb3d49;
+    }
+
+    .badge-security {
+      background: var(--purple-soft);
+      color: #6950c9;
+    }
+
+    .badge-success {
+      background: var(--green-soft);
+      color: #228158;
+    }
+
+    /* -------------------------
+       TABLE
+    ------------------------- */
+
+    .table-wrapper {
+      overflow-x: auto;
+      margin-top: 1.3rem;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 850px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 1rem 0.9rem;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid #e7eef3;
+    }
+
+    th {
+      background: #f6f9fb;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #fbfdfe;
+    }
+
+    td:first-child {
+      color: var(--text-dark);
+      font-weight: 800;
+      width: 50px;
+    }
+
+    td strong {
+      color: var(--text-dark);
+    }
+
+    .why {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* -------------------------
+       TOOLS
+    ------------------------- */
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.4rem;
+    }
+
+    .tool {
+      padding: 1.25rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: #fbfdfe;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tool::after {
+      content: "";
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      right: -35px;
+      top: -35px;
+      background: var(--accent-soft);
+      opacity: 0.7;
+    }
+
+    .tool-header {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tool-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-weight: 900;
+    }
+
+    .tool h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .tool p {
+      margin: 0.75rem 0 0;
+      font-size: 0.9rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* -------------------------
+       EXIT CRITERIA
+    ------------------------- */
+
+    .criteria {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .criterion {
+      padding: 1.5rem;
+      border-radius: 21px;
+      background: linear-gradient(
+        145deg,
+        #ffffff,
+        #f5fafb
+      );
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .criterion-value {
+      color: var(--accent-dark);
+      font-size: 2.15rem;
+      line-height: 1;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+    }
+
+    .criterion-label {
+      margin-top: 0.6rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* -------------------------
+       OUT OF SCOPE
+    ------------------------- */
+
+    .scope-list {
+      display: grid;
+      gap: 0.8rem;
+      margin-top: 1.2rem;
+    }
+
+    .scope-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+      padding: 1rem 1.1rem;
+      border-radius: 16px;
+      background: #f8fafb;
+      border: 1px solid var(--border);
+    }
+
+    .scope-icon {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      background: #edf1f4;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .scope-item strong {
+      color: var(--text-dark);
+    }
+
+    .scope-item span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    /* -------------------------
+       FLOW
+    ------------------------- */
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin: 1.6rem 0 0.5rem;
+    }
+
+    .flow-step {
+      min-width: 155px;
+      padding: 1rem 1.15rem;
+      border-radius: 17px;
+      background: #fff;
+      border: 1px solid var(--border);
+      box-shadow: 0 9px 25px rgba(16,42,67,0.06);
+      text-align: center;
+    }
+
+    .flow-step strong {
+      display: block;
+      color: var(--text-dark);
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .flow-arrow {
+      color: var(--accent);
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+
+    /* -------------------------
+       CODE
+    ------------------------- */
+
+    .code {
+      display: block;
+      overflow-x: auto;
+      background: #102a43;
+      border-radius: 18px;
+      padding: 1.2rem 1.3rem;
+      color: #d9f6f2;
+      font-family:
+        SFMono-Regular,
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      margin-top: 1rem;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    /* -------------------------
+       FOOTER
+    ------------------------- */
+
+    footer {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    /* -------------------------
+       RESPONSIVE
+    ------------------------- */
+
+    @media (max-width: 900px) {
+      .grid-2,
+      .objective,
+      .pyramid-wrapper {
+        grid-template-columns: 1fr;
+      }
+
+      .criteria {
+        grid-template-columns: 1fr;
+      }
+
+      .tool-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pyramid {
+        min-height: 360px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 3rem 1rem 2rem;
+      }
+
+      main {
+        padding: 0 1rem 3rem;
+      }
+
+      .card {
+        padding: 1.35rem;
+        border-radius: 21px;
+      }
+
+      .level-e2e {
+        width: 62%;
+      }
+
+      .level-int {
+        width: 78%;
+      }
+
+      .level-unit {
+        width: 94%;
+      }
+
+      .flow {
+        flex-direction: column;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="header-content">
+
+      <div class="eyebrow">
+        HRFlow · Jour 2
+      </div>
+
+      <h1>
+        Plan de tests
+        <span class="title-highlight">HRFlow</span>
+      </h1>
+
+      <p class="intro">
+        Stratégie de test définie avant implémentation :
+        niveaux de tests, scénarios critiques, outils,
+        critères de sortie et limites assumées.
+      </p>
+
+      <div class="meta">
+        <div class="meta-pill">
+          Date <strong>24 juillet 2026</strong>
+        </div>
+
+        <div class="meta-pill">
+          Item <strong>Rédaction du plan de tests</strong>
+        </div>
+
+        <div class="meta-pill">
+          Référence <strong>Audit J1</strong>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <main>
+
+    <!-- OBJECTIF -->
+
+    <section class="card">
+
+      <div class="section-number">01</div>
+
+      <div class="objective">
+
+        <div class="objective-main">
+          <h2>Objectif du plan</h2>
+
+          <p>
+            Documenter la stratégie de test avant de l'implémenter :
+            quels niveaux couvrir, quels scénarios sont critiques,
+            avec quels outils et quel seuil de sortie.
+          </p>
+
+          <p>
+            L'état réel de l'exécution — nombre de tests,
+            couverture effective et résultats — est reporté dans
+            <strong>docs/RAPPORT-ETAT-CORRECTIONS.md</strong>.
+          </p>
+        </div>
+
+        <div class="objective-side">
+          <strong>Une seule source de vérité</strong>
+          <span>
+            Ce document définit la stratégie.
+            Les résultats d'exécution restent dans le rapport
+            d'état des corrections afin d'éviter les divergences.
+          </span>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- PYRAMIDE -->
+
+    <section class="card">
+
+      <div class="section-number">02</div>
+
+      <h2>Pyramide de tests retenue</h2>
+
+      <p>
+        Trois niveaux complémentaires : rapides et isolés à la base,
+        puis progressivement plus proches du comportement réel
+        de l'application.
+      </p>
+
+      <div class="pyramid-wrapper">
+
+        <div class="pyramid">
+
+          <div class="pyramid-level level-e2e">
+            <strong>E2E — Playwright</strong>
+            <span>5 parcours clés · stack réelle</span>
+          </div>
+
+          <div class="pyramid-arrow">↓</div>
+
+          <div class="pyramid-level level-int">
+            <strong>Intégration — Jest + Supertest</strong>
+            <span>HTTP réel · DB mockée · JWT réels</span>
+          </div>
+
+          <div class="pyramid-arrow">↓</div>
+
+          <div class="pyramid-level level-unit">
+            <strong>Unitaire — Jest</strong>
+            <span>Logique métier et middlewares</span>
+          </div>
+
+        </div>
+
+
+        <div class="level-description">
+
+          <div class="level-card">
+            <div class="level-icon unit-icon">U</div>
+            <div>
+              <strong>Tests unitaires</strong>
+              <p>
+                Fonctions pures : cotisations, heures supplémentaires,
+                solde de congés et middlewares
+                <code>requireAuth</code> / <code>requireAdmin</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="level-card">
+            <div class="level-icon int-icon">I</div>
+            <div>
+              <strong>Tests d'intégration</strong>
+              <p>
+                Routes Express réelles via Supertest,
+                PostgreSQL mocké et JWT réels.
+                Vérification du contrat HTTP et des requêtes SQL.
+              </p>
+            </div>
+          </div>
+
+          <div class="level-card">
+            <div class="level-icon e2e-icon">E</div>
+            <div>
+              <strong>Tests E2E</strong>
+              <p>
+                Stack réelle via Docker Compose :
+                gateway, services, PostgreSQL et frontend.
+                Validation des parcours utilisateurs complets.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- PIPELINE DE TEST -->
+
+    <section class="card">
+
+      <div class="section-number">03</div>
+
+      <h2>Flux de validation</h2>
+
+      <p>
+        Les différents niveaux s'empilent pour détecter rapidement
+        les régressions tout en conservant une validation proche
+        des conditions réelles d'utilisation.
+      </p>
+
+      <div class="flow">
+
+        <div class="flow-step">
+          <strong>Code</strong>
+          <span>Push / Pull Request</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Unit</strong>
+          <span>Logique métier</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Integration</strong>
+          <span>Contrats HTTP</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>E2E</strong>
+          <span>Stack réelle</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Security</strong>
+          <span>Trivy + ZAP</span>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SCENARIOS -->
+
+    <section class="card">
+
+      <div class="section-number">04</div>
+
+      <h2>Scénarios critiques</h2>
+
+      <p>
+        Les scénarios suivants constituent la couverture minimale
+        attendue pour les fonctions sensibles du système HRFlow.
+      </p>
+
+      <div class="table-wrapper">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Scénario</th>
+              <th>Niveau</th>
+              <th>Pourquoi c'est critique</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            <tr>
+              <td>1</td>
+              <td>
+                <strong>Login valide → JWT signé avec le bon rôle</strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+              </td>
+              <td class="why">
+                Racine de l'authentification.
+                Une régression bloque l'accès ou peut provoquer
+                une usurpation de rôle.
+              </td>
+            </tr>
+
+            <tr>
+              <td>2</td>
+              <td>
+                <strong>Login invalide → 401 sans fuite d'information</strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+              </td>
+              <td class="why">
+                Empêche l'énumération des comptes et les réponses
+                révélant l'existence d'un utilisateur.
+              </td>
+            </tr>
+
+            <tr>
+              <td>3</td>
+              <td>
+                <strong>Injection SQL sur l'email de login</strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+                <span class="badge badge-critical">Critique</span>
+              </td>
+              <td class="why">
+                Régression de la correction Phase 1 :
+                la requête doit rester paramétrée.
+              </td>
+            </tr>
+
+            <tr>
+              <td>4</td>
+              <td>
+                <strong>
+                  /paie/migrate et /conges/debug/all
+                  sans token ou non-admin
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+                <span class="badge badge-critical">P1</span>
+              </td>
+              <td class="why">
+                Protection obligatoire issue de l'incident
+                du 14/15 août 2024.
+              </td>
+            </tr>
+
+            <tr>
+              <td>5</td>
+              <td>
+                <strong>Calcul du solde de congés</strong>
+              </td>
+              <td>
+                <span class="badge badge-unit">Unitaire</span>
+                <span class="badge badge-int">Intégration</span>
+              </td>
+              <td class="why">
+                Donnée directement visible par les salariés.
+                Une erreur impacte la confiance dans l'application.
+              </td>
+            </tr>
+
+            <tr>
+              <td>6</td>
+              <td>
+                <strong>Majoration des heures supplémentaires de 25 %</strong>
+              </td>
+              <td>
+                <span class="badge badge-unit">Unitaire</span>
+              </td>
+              <td class="why">
+                Correction métier directement liée à la paie versée.
+              </td>
+            </tr>
+
+            <tr>
+              <td>7</td>
+              <td>
+                <strong>
+                  Échec Stripe lors du calcul de paie
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+              </td>
+              <td class="why">
+                Le comportement actuel doit rester documenté
+                et testé pour éviter une régression silencieuse.
+              </td>
+            </tr>
+
+            <tr>
+              <td>8</td>
+              <td>
+                <strong>
+                  Route protégée du gateway sans token → 401
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-int">Intégration</span>
+                <span class="badge badge-e2e">E2E</span>
+              </td>
+              <td class="why">
+                Défense en profondeur du système d'authentification.
+              </td>
+            </tr>
+
+            <tr>
+              <td>9</td>
+              <td>
+                <strong>
+                  Login UI → dashboard + solde affiché
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-e2e">E2E</span>
+              </td>
+              <td class="why">
+                Parcours utilisateur principal.
+                Permet de détecter les problèmes de proxy et d'URL.
+              </td>
+            </tr>
+
+            <tr>
+              <td>10</td>
+              <td>
+                <strong>
+                  Login échoué → message d'erreur
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-e2e">E2E</span>
+              </td>
+              <td class="why">
+                Empêche les échecs silencieux côté interface.
+              </td>
+            </tr>
+
+            <tr>
+              <td>11</td>
+              <td>
+                <strong>
+                  Accès direct à /dashboard sans session
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-e2e">E2E</span>
+              </td>
+              <td class="why">
+                Vérifie qu'aucune donnée protégée n'est accessible
+                sans authentification.
+              </td>
+            </tr>
+
+            <tr>
+              <td>12</td>
+              <td>
+                <strong>
+                  Recrutement : candidature → consultation
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-e2e">E2E API</span>
+              </td>
+              <td class="why">
+                Module historiquement non couvert.
+                Inclut la problématique sensible de l'upload CV.
+              </td>
+            </tr>
+
+            <tr>
+              <td>13</td>
+              <td>
+                <strong>
+                  Congés : demande authentifiée + calcul des jours
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-e2e">E2E API</span>
+              </td>
+              <td class="why">
+                Traverse le gateway, le service et une vraie base
+                PostgreSQL.
+              </td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+
+    <!-- OUTILS -->
+
+    <section class="card">
+
+      <div class="section-number">05</div>
+
+      <h2>Outils retenus</h2>
+
+      <p>
+        Les outils sont choisis pour rester cohérents avec
+        l'écosystème Node/React existant et limiter la complexité
+        de la CI.
+      </p>
+
+      <div class="tool-grid">
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">J</div>
+            <h3>Jest</h3>
+          </div>
+          <p>
+            Runner unitaire et intégration pour les services backend
+            et le frontend. Déjà présent dans le projet.
+          </p>
+        </div>
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">S</div>
+            <h3>Supertest</h3>
+          </div>
+          <p>
+            Requêtes HTTP contre l'application Express exportée,
+            sans ouvrir de véritable port.
+          </p>
+        </div>
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">R</div>
+            <h3>Testing Library</h3>
+          </div>
+          <p>
+            Tests React orientés comportement utilisateur :
+            rendu, interactions et erreurs.
+          </p>
+        </div>
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">P</div>
+            <h3>Playwright</h3>
+          </div>
+          <p>
+            E2E navigateur et API contre la stack Docker réelle.
+            Permet de couvrir les parcours utilisateur complets.
+          </p>
+        </div>
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">T</div>
+            <h3>Trivy</h3>
+          </div>
+          <p>
+            Scan de vulnérabilités des images Docker dans le stage
+            Sécurité du pipeline.
+          </p>
+        </div>
+
+        <div class="tool">
+          <div class="tool-header">
+            <div class="tool-icon">Z</div>
+            <h3>OWASP ZAP</h3>
+          </div>
+          <p>
+            Scan dynamique baseline de l'API exposée pour compléter
+            les contrôles statiques et les scans d'images.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- CRITERES -->
+
+    <section class="card">
+
+      <div class="section-number">06</div>
+
+      <h2>Critères de sortie</h2>
+
+      <p>
+        Le plan considère la campagne de tests acceptable lorsque
+        les seuils suivants sont respectés.
+      </p>
+
+      <div class="criteria">
+
+        <div class="criterion">
+          <div class="criterion-value">≥ 80%</div>
+          <div class="criterion-label">
+            Coverage lignes backend par service
+          </div>
+          <span class="badge badge-success">
+            Jest --coverage
+          </span>
+        </div>
+
+        <div class="criterion">
+          <div class="criterion-value">≥ 5</div>
+          <div class="criterion-label">
+            Scénarios E2E Playwright passants
+          </div>
+          <span class="badge badge-success">
+            Docker Compose
+          </span>
+        </div>
+
+        <div class="criterion">
+          <div class="criterion-value">100%</div>
+          <div class="criterion-label">
+            Gates critiques avant déploiement
+          </div>
+          <span class="badge badge-success">
+            Test + Security
+          </span>
+        </div>
+
+      </div>
+
+      <div class="code">
+# Stage test
+npm test -- --coverage
+
+# Stage security
+npm audit --omit=dev --audit-level=high
+trivy image &lt;image&gt;
+zap-baseline.py ...
+
+# E2E
+docker compose up -d
+npx playwright test
+      </div>
+
+    </section>
+
+
+    <!-- CI -->
+
+    <section class="card">
+
+      <div class="section-number">07</div>
+
+      <h2>Intégration dans la CI/CD</h2>
+
+      <p>
+        Les tests doivent devenir une porte de passage obligatoire
+        avant les environnements de staging puis de production.
+      </p>
+
+      <div class="flow">
+
+        <div class="flow-step">
+          <strong>Build</strong>
+          <span>Compilation</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Test</strong>
+          <span>Jest + Playwright</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Security</strong>
+          <span>Audit + Trivy + ZAP</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Staging</strong>
+          <span>Smoke test</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step">
+          <strong>Production</strong>
+          <span>Validation manuelle</span>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- HORS PERIMETRE -->
+
+    <section class="card">
+
+      <div class="section-number">08</div>
+
+      <h2>Hors périmètre</h2>
+
+      <p>
+        Certaines catégories de tests sont volontairement exclues
+        de cette campagne afin de conserver un périmètre réaliste.
+      </p>
+
+      <div class="scope-list">
+
+        <div class="scope-item">
+          <div class="scope-icon">—</div>
+          <div>
+            <strong>Tests de charge / performance</strong><br />
+            <span>
+              Non demandés dans le périmètre actuel.
+            </span>
+          </div>
+        </div>
+
+        <div class="scope-item">
+          <div class="scope-icon">—</div>
+          <div>
+            <strong>Tests de migration de schéma</strong><br />
+            <span>
+              Aucune migration versionnée n'existe actuellement
+              dans le repository.
+            </span>
+          </div>
+        </div>
+
+        <div class="scope-item">
+          <div class="scope-icon">—</div>
+          <div>
+            <strong>Coverage frontend exhaustif</strong><br />
+            <span>
+              Seuls Login et Dashboard sont actuellement concernés ;
+              le plan ne cherche pas à couvrir chaque composant.
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- CONCLUSION -->
+
+    <section
+      class="card"
+      style="
+        background:
+          linear-gradient(
+            135deg,
+            #e8f8f5 0%,
+            #f4f8ff 100%
+          );
+        border-color: rgba(25,183,170,0.18);
+      "
+    >
+
+      <div class="section-number">09</div>
+
+      <h2>Principe directeur</h2>
+
+      <p style="font-size: 1.08rem; color: var(--text);">
+        <strong>
+          Tester rapidement en bas de la pyramide,
+          tester réellement en haut,
+          et empêcher toute régression critique d'atteindre
+          le déploiement.
+        </strong>
+      </p>
+
+      <p>
+        Le plan privilégie une couverture progressive :
+        logique métier avec Jest, contrats HTTP avec Supertest,
+        puis validation des parcours réels avec Playwright.
+        Les contrôles de sécurité complètent cette stratégie
+        avant le staging et la production.
+      </p>
+
+    </section>
+
+  </main>
+
+  <footer>
+    Plan de tests HRFlow · 24 juillet 2026 ·
+    Stratégie définie avant implémentation
+  </footer>
+
+</body>
+</html>

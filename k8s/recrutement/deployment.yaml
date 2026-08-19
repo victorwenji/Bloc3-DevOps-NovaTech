@@ -1,11 +1,12 @@
-# k8s/recrutement/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: recrutement
-  namespace: hrflow
 spec:
-  replicas: 2
+  # Sur un t4g.large, avec 6 services + Prometheus/Grafana, commencez à 1 replica
+  # par service. Passez à 2 une fois l'instance dimensionnée en conséquence
+  # (t4g.xlarge par ex.), sinon les pods restent Pending faute de CPU/RAM.
+  replicas: ${REPLICAS}
   selector:
     matchLabels:
       app: recrutement
@@ -26,18 +27,21 @@ spec:
                 name: hrflow-config
             - secretRef:
                 name: hrflow-secrets
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 3004
             initialDelaySeconds: 5
-            periodSeconds: 10
+            periodSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 3004
             initialDelaySeconds: 15
-            periodSeconds: 20
-          resources:
-            requests: { cpu: "100m", memory: "128Mi" }
-            limits: { cpu: "500m", memory: "512Mi" }
+            periodSeconds: 10

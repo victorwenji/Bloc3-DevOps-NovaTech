@@ -12,6 +12,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hrflow_prod',
   user: process.env.DB_USER || 'hrflow_admin',
   password: process.env.DB_PASSWORD,
+  // RDS refuse les connexions non chiffrées (pg_hba.conf force SSL) ; en local
+  // (docker-compose, NODE_ENV=development) postgres:16-alpine n'a pas SSL activé.
+  ssl: process.env.NODE_ENV === 'development' ? false : { rejectUnauthorized: false },
 })
 /**
  * Middleware pour vérifier le rôle admin.
@@ -181,6 +184,26 @@ app.post('/paie/heures-sup', async (req, res) => {
   const majorationHeuresSup = heures * tauxHoraire * 1.25
   res.json({ heures, tauxHoraire, majorationHeuresSup, total: majorationHeuresSup })
 })
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Vérifie l'état de santé de l'API paie
+ *     description: Retourne un statut OK si l'API paie fonctionne correctement.
+ *     tags: [Paie]
+ *     responses:
+ *       200:
+ *         description: État de santé OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ */
+app.get('/health', (req, res) => res.json({ status: 'ok' }))
 
 // Intégration de Swagger
 const setupSwagger = require('../swagger');

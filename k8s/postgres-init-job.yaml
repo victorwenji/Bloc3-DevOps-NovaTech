@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: psql-init
+          image: postgres:16-alpine
+          envFrom:
+            - configMapRef:
+                name: hrflow-config
+            - secretRef:
+                name: hrflow-secrets
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "En attente que RDS accepte les connexions... (DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_NAME=$DB_NAME DB_USER=$DB_USER)"
+              attempt=0
+              max_attempts=20
+              until psql_error=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>&1); do
+                attempt=$((attempt + 1))
+                echo "Tentative $attempt/$max_attempts échouée : $psql_error"
+                if [ "$attempt" -ge "$max_attempts" ]; then
+                  echo "Abandon après $max_attempts tentatives : RDS injoignable ou credentials invalides."
+                  exit 1
+                fi
+                echo "Nouvelle tentative dans 5s..."
+                sleep 5
+              done
+              echo "Connexion OK, exécution du script d'init..."
+              PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /init-scripts/init.sql
+              echo "Init terminée."
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init-scripts
+      volumes:
+        - name: init-sql
+          configMap:
+            name: postgres-init

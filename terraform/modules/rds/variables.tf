@@ -1,57 +1,61 @@
-# ============================================================
-# PROJECT
-# ============================================================
-
 variable "project_name" {
-  description = "Nom du projet"
-  type        = string
+  type = string
 }
-
-# ============================================================
-# VPC
-# ============================================================
 
 variable "vpc_id" {
-  description = "ID du VPC"
-  type        = string
+  type = string
 }
 
-# ============================================================
-# SUBNETS
-# ============================================================
-
+# Au moins 2 subnets dans 2 AZ différentes (contrainte RDS)
 variable "subnet_ids" {
-  description = "IDs des subnets du VPC utilisés par le groupe RDS"
-  type        = list(string)
+  type = list(string)
 }
-
-# ============================================================
-# EC2 SECURITY GROUP
-# ============================================================
 
 variable "ec2_security_group_id" {
-  description = "Security Group de l'EC2/K3s autorisé à accéder à PostgreSQL"
+  description = "Security group de l'EC2 k3s : seul autorisé à parler à la base"
   type        = string
 }
 
-# ============================================================
-# DATABASE
-# ============================================================
-
 variable "database_name" {
-  description = "Nom de la base PostgreSQL"
-  type        = string
-  default     = "novatech"
+  type = string
 }
 
 variable "database_username" {
-  description = "Utilisateur administrateur PostgreSQL"
-  type        = string
-  default     = "novatech_admin"
+  type = string
 }
 
 variable "database_password" {
-  description = "Mot de passe administrateur PostgreSQL"
-  type        = string
-  sensitive   = true
+  type      = string
+  sensitive = true
+}
+
+variable "instance_class" {
+  type    = string
+  default = "db.t4g.micro"
+}
+
+variable "allocated_storage" {
+  type    = number
+  default = 20
+}
+
+variable "engine_version" {
+  type    = string
+  default = "16"
+}
+
+variable "multi_az" {
+  type    = bool
+  default = false
+}
+
+variable "skip_final_snapshot" {
+  description = "true en staging pour pouvoir détruire sans blocage. Passer à false en prod."
+  type        = bool
+  default     = true
+}
+
+variable "deletion_protection" {
+  type    = bool
+  default = false
 }

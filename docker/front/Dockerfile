@@ -8,7 +8,7 @@ RUN cd frontend && npm ci
 
 COPY frontend ./frontend
 
-ARG REACT_APP_API_URL=http://localhost:3006/api
+ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 ENV PORT=3005
