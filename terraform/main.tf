@@ -36,7 +36,7 @@ module "ec2" {
  
   project_name     = var.project_name
   vpc_id           = module.network.vpc_id
-  public_subnet_id = module.network.public_subnet_ids[0]
+  public_subnet_id = module.network.public_subnet_ids[1]
   ssh_allowed_cidr = var.ssh_allowed_cidr
   instance_type    = var.instance_type
   key_name         = var.key_name
