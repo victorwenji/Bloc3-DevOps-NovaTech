@@ -31,7 +31,7 @@ database_username  = "novatech_admin"
 rds_instance_class = "db.t4g.micro"
 
 # ============================================================
-# ALB
+# ALB 
 # ============================================================
 # Laisser vide tant que vous n'avez pas de nom de domaine + certificat ACM.
 # Une fois le domaine prêt : certificate_arn = "arn:aws:acm:eu-west-3:...:certificate/..."
