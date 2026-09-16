@@ -21,7 +21,7 @@ project_name = "my-project"
 # ============================================================
 instance_type    = "t4g.large"
 key_name         = "novatech-k3s-key"
-ssh_allowed_cidr = "92.217.80.233/32"
+ssh_allowed_cidr = "81.65.144.84/32"
 
 # ============================================================
 # RDS POSTGRESQL
