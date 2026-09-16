@@ -9,3 +9,4 @@ build/
 *secret.auto.tfvars
 *.tfstate
 *.tfstate.*
+*.pem

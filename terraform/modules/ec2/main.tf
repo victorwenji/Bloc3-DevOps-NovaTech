@@ -59,6 +59,11 @@ resource "aws_iam_role_policy_attachment" "k3s_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy_attachment" "k3s_ecr" {
+  role       = aws_iam_role.k3s_ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 resource "aws_iam_instance_profile" "k3s" {
   name = "${var.project_name}-k3s-instance-profile"
   role = aws_iam_role.k3s_ssm.name
@@ -89,13 +94,6 @@ resource "aws_security_group" "k3s" {
     Name = "${var.project_name}-k3s-sg"
   }
 }
-
-# Les règles d'ingress sont déclarées en ressources séparées (et non en blocs
-# `ingress {}` inline sur l'aws_security_group) car main.tf ajoute par ailleurs
-# sa propre règle (alb_to_ec2_http) sur ce même security group. Mélanger les deux
-# styles fait perdre à Terraform le contrôle de la liste : le bloc inline se
-# comporte comme la liste autoritaire et supprime silencieusement toute règle
-# ajoutée par un aws_security_group_rule externe au prochain apply.
 
 resource "aws_security_group_rule" "ssh" {
   type              = "ingress"
@@ -176,10 +174,6 @@ resource "aws_instance" "k3s" {
   subnet_id     = var.public_subnet_id
   key_name      = var.key_name
 
-  # Par défaut, l'AWS provider ne remplace PAS l'instance quand user_data change
-  # (elle ne se réexécute pas non plus sur une instance déjà démarrée) : un
-  # correctif dans le script d'installation resterait donc silencieusement sans
-  # effet sur l'instance déjà en place tant qu'on ne force pas ce remplacement.
   user_data_replace_on_change = true
 
   # ----------------------------------------------------------
@@ -210,7 +204,8 @@ resource "aws_instance" "k3s" {
     http_put_response_hop_limit = 2
   }
 
-  user_data = <<-EOF
+  # --- MODIFICATION ICI : user_data_base64 + gzipbase64 ---
+  user_data_base64 = base64gzip(<<-EOF
 #!/bin/bash
 set -Eeuo pipefail
 LOG_FILE="/var/log/novatech-install.log"
@@ -245,7 +240,6 @@ echo "============================================================"
 if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
   snap install amazon-ssm-agent --classic
 fi
-
 # Le paquet snap Ubuntu (images cloud 24.04) enregistre l'agent sous ce nom
 # d'unité, pas "amazon-ssm-agent.service" (qui n'existe que pour le paquet
 # .deb historique). On détecte le vrai nom pour rester robuste si une future
@@ -266,7 +260,6 @@ systemctl status "$SSM_UNIT" --no-pager || true
 # SWAP
 # ============================================================
 
-# --- SWAP ---
 echo "============================================================"
 echo "CONFIGURING SWAP"
 echo "============================================================"
@@ -411,7 +404,7 @@ echo "Downloading Grafana dashboard 15757..."
 mkdir -p /tmp/dashboards
 curl -s https://grafana.com/api/dashboards/15757/revisions/43/download/ -o /tmp/dashboards/15757.json
 
-# --- WRITE CUSTOM HRFLOW DASHBOARD (latence P99, taux d'erreur, CPU/RAM, saturation) ---
+# --- WRITE CUSTOM HRFLOW DASHBOARD ---
 echo "Writing HRFlow observability dashboard..."
 cat > /tmp/dashboards/hrflow-observability.json <<'JSONEOF'
 ${file("${path.module}/../../dashboards/hrflow-observability.json")}
@@ -463,8 +456,6 @@ helm upgrade --install kube-prometheus-stack \
 echo "kube-prometheus-stack installation submitted."
 
 # --- CUSTOM GRAFANA DASHBOARDS CONFIGMAP ---
-# grafana.dashboards.<provider>.json ne pose pas le label grafana_dashboard=1 surveillé
-# par le sidecar (vérifié dans le chart) : jamais chargé. ConfigMap manuel + label à la place.
 echo "Applying custom Grafana dashboards ConfigMap..."
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 k3s kubectl create configmap hrflow-custom-dashboards -n monitoring \
@@ -474,8 +465,7 @@ k3s kubectl create configmap hrflow-custom-dashboards -n monitoring \
   | k3s kubectl label --local -f - grafana_dashboard=1 -o yaml \
   | k3s kubectl apply -f -
 
-# --- PODMONITOR TRAEFIK (Traefik arrive plus tard au 1er déploiement CD, 0 pod matché
-# au départ, pas une erreur. Label "release" requis par podMonitorSelectorNilUsesHelmValues) ---
+# --- PODMONITOR TRAEFIK ---
 echo "Applying Traefik PodMonitor..."
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 cat <<'YAMLEOF' | k3s kubectl apply -f -
@@ -606,6 +596,7 @@ echo "NOVATECH INSTALLATION COMPLETE"
 echo "============================================================"
 date
 EOF
+) # --- FERMETURE DE LA PARENTHÈSE DE GZIPBASE64 ---
 
   tags = {
     Name = "${var.project_name}-k3s"

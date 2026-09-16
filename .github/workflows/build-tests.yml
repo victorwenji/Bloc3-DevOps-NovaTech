@@ -46,7 +46,15 @@ jobs:
 
       - name: Run Jest unit tests
         working-directory: ${{ matrix.path }}
-        run: npm test -- --coverage --runInBand
+        run: npm test -- --coverage --coverageReporters=text-summary --coverageReporters=lcov --runInBand
+
+      - name: Upload coverage report (${{ matrix.name }})
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-${{ matrix.name }}
+          path: ${{ matrix.path }}/coverage/lcov-report/
+          if-no-files-found: ignore
 
   frontend-tests-and-build:
     name: Frontend tests and build
@@ -68,7 +76,15 @@ jobs:
 
       - name: Run frontend unit tests
         working-directory: frontend
-        run: npm test -- --watch=false --runInBand --coverage
+        run: npm test -- --watch=false --runInBand --coverage --coverageReporters=text-summary --coverageReporters=lcov
+
+      - name: Upload coverage report (frontend)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-frontend
+          path: frontend/coverage/lcov-report/
+          if-no-files-found: ignore
 
       - name: Build frontend production bundle
         working-directory: frontend
