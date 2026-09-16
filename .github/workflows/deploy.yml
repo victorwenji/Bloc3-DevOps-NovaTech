@@ -506,14 +506,78 @@ jobs:
             kubectl logs -n ${{ env.NAMESPACE }} -l app=$svc --tail=50 --all-containers || true
           done
 
-      - name: Deploy gateway
+      - name: Deploy gateway (rolling update, zero-downtime vérifié)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          # Le test de zero-downtime n'a de sens que s'il existe déjà un
+          # gateway en place à mettre à jour - sur un tout premier déploiement
+          # (namespace neuf), il n'y a rien à comparer à "avant", donc rien à
+          # prouver : on se contente d'un apply + rollout status classique.
+          if kubectl get deployment gateway -n ${{ env.NAMESPACE }} >/dev/null 2>&1; then
+            FIRST_DEPLOY=false
+          else
+            FIRST_DEPLOY=true
+            echo "Premier déploiement du gateway sur ce namespace - vérification zero-downtime ignorée."
+          fi
+
+          if [ "$FIRST_DEPLOY" = "false" ]; then
+            # Lancé AVANT l'apply, pour couvrir tout le rolling update dès
+            # ses premières secondes. Un pod dédié dans le cluster (pas un
+            # port-forward, qui reste épinglé à un seul pod pendant toute sa
+            # durée) : chaque appel curl est une connexion neuve vers le nom
+            # DNS du Service, donc passe réellement par la répartition de
+            # trafic Kubernetes entre l'ancien et le nouveau pod pendant la
+            # transition. Une seule requête en échec est un vrai downtime,
+            # pas du bruit de test.
+            kubectl delete pod zero-downtime-monitor -n ${{ env.NAMESPACE }} --ignore-not-found --wait=true
+            kubectl run zero-downtime-monitor --image=curlimages/curl:8.10.1 --restart=Never \
+              -n ${{ env.NAMESPACE }} -- sh -c '
+                i=0
+                while [ $i -lt 90 ]; do
+                  curl -s -o /dev/null -w "%{http_code}\n" --max-time 2 http://gateway:3000/health
+                  i=$((i+1))
+                  sleep 1
+                done
+              '
+          fi
+
           envsubst < k8s/gateway/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
           kubectl apply -f k8s/gateway/service.yaml -n ${{ env.NAMESPACE }}
+
           kubectl rollout status deployment/gateway -n ${{ env.NAMESPACE }} --timeout=120s
+          ROLLOUT_STATUS=$?
+
+          if [ "$FIRST_DEPLOY" = "true" ]; then
+            [ "$ROLLOUT_STATUS" -eq 0 ] || { echo "::error::Le rollout initial du gateway a échoué."; exit 1; }
+            exit 0
+          fi
+
+          echo "Attente de la fin du moniteur zero-downtime..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/zero-downtime-monitor \
+            -n ${{ env.NAMESPACE }} --timeout=100s || true
+
+          kubectl logs zero-downtime-monitor -n ${{ env.NAMESPACE }} > /tmp/zero-downtime.log || true
+          kubectl delete pod zero-downtime-monitor -n ${{ env.NAMESPACE }} --ignore-not-found
+
+          TOTAL=$(wc -l < /tmp/zero-downtime.log)
+          FAILURES=$(grep -vc "^200$" /tmp/zero-downtime.log || true)
+          echo "Requêtes /health pendant le rolling update : $TOTAL, échecs : $FAILURES"
+          cat /tmp/zero-downtime.log
+
+          if [ "$ROLLOUT_STATUS" -ne 0 ]; then
+            echo "::error::Le rollout du gateway a échoué."
+            exit 1
+          fi
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::Aucune requête de vérification n'a pu être exécutée - zero-downtime non prouvé."
+            exit 1
+          fi
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "::error::Downtime détecté pendant le rolling update ($FAILURES/$TOTAL requêtes en échec)"
+            exit 1
+          fi
 
       - name: Deploy frontend
         env:

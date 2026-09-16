@@ -1,8 +1,19 @@
-apiVersion: apps/v1
+﻿apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway
 spec:
+  # Rolling Update explicite (alternative retenue au Blue/Green, voir
+  # docs/BLUE-GREEN-STRATEGIE.md) : maxUnavailable=0 garantit qu il y a
+  # toujours au moins autant de pods "old" que de replicas demandes tant que
+  # le "new" pod n est pas Ready (readinessProbe ci-dessous) ; maxSurge=1
+  # autorise un pod supplementaire temporaire pour faire cette transition
+  # sans jamais couper le service, y compris avec replicas=1.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   replicas: ${REPLICAS}
   selector:
     matchLabels:
@@ -32,10 +43,16 @@ spec:
               cpu: 250m
               memory: 256Mi
           readinessProbe:
-            tcpSocket:
+            # httpGet plutot que tcpSocket : un port ouvert ne veut pas dire
+            # que le serveur Express a fini son demarrage (connexion DB,
+            # migrations...) - seul /health garantit une reponse applicative
+            # reelle avant que le Service ne route du trafic vers ce pod.
+            httpGet:
+              path: /health
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             tcpSocket:
               port: 3000
