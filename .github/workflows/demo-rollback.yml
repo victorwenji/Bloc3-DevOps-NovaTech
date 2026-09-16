@@ -1,0 +1,195 @@
+name: HRFlow Demo — Rollback chronométré
+ 
+# Déclenché manuellement depuis l'onglet Actions ("Run workflow") — pas sur push,
+# volontairement : ce workflow casse un déploiement pour de vrai (image inexistante),
+# ce n'est pas quelque chose qu'on veut voir se déclencher tout seul.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement cible"
+        required: true
+        type: choice
+        options: [staging, production]
+        default: staging
+      service:
+        description: "Service à casser puis restaurer"
+        required: true
+        type: choice
+        options: [auth, paie, conges, recrutement, gateway]
+        default: auth
+ 
+permissions:
+  contents: read
+ 
+concurrency:
+  group: hrflow-demo-rollback-${{ inputs.environment }}
+  cancel-in-progress: false # on ne veut jamais interrompre une démo en cours
+ 
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  NAMESPACE: hrflow-${{ inputs.environment }}
+  SERVICE: ${{ inputs.service }}
+ 
+jobs:
+  demo-rollback:
+    name: Incident simulé + rollback chronométré
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+ 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+ 
+      - name: Get instance_id depuis le state Terraform
+        working-directory: ./terraform
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform workspace select "${{ inputs.environment }}"
+          INSTANCE_ID="$(terraform output -raw instance_id)"
+          if [ -z "$INSTANCE_ID" ]; then
+            echo "::error::terraform output 'instance_id' est vide sur le workspace ${{ inputs.environment }}."
+            exit 1
+          fi
+          echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
+ 
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@3e0aec4d80787158d308d7b364cb1b702e7feb7f # v4
+ 
+      - name: Fetch kubeconfig via SSM
+        run: |
+          # Même pattern que deploy.yml ("Fetch kubeconfig via SSM") : le k3s.yaml
+          # généré sur le nœud pointe déjà sur https://127.0.0.1:6443, cohérent
+          # avec le tunnel SSM ouvert juste après.
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["cat /etc/rancher/k3s/k3s.yaml"]' \
+            --query "Command.CommandId" --output text)
+ 
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" || true
+ 
+          STATUS=$(aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "Status" --output text)
+ 
+          aws ssm get-command-invocation \
+            --instance-id "$INSTANCE_ID" \
+            --command-id "$COMMAND_ID" \
+            --query "StandardOutputContent" --output text > kubeconfig.yaml
+ 
+          if [ "$STATUS" != "Success" ] || [ ! -s kubeconfig.yaml ] || ! grep -q "apiVersion" kubeconfig.yaml; then
+            echo "::error::Impossible de récupérer le kubeconfig via SSM (status: $STATUS)."
+            exit 1
+          fi
+          echo "KUBECONFIG=$PWD/kubeconfig.yaml" >> "$GITHUB_ENV"
+ 
+      - name: Install Session Manager plugin
+        run: |
+          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+          sudo dpkg -i session-manager-plugin.deb
+ 
+      - name: Start SSM port-forward tunnel to k3s API
+        run: |
+          aws ssm start-session \
+            --target "$INSTANCE_ID" \
+            --document-name AWS-StartPortForwardingSession \
+            --parameters '{"portNumber":["6443"],"localPortNumber":["6443"]}' \
+            > ssm-tunnel.log 2>&1 &
+          echo "SSM_TUNNEL_PID=$!" >> "$GITHUB_ENV"
+ 
+          for i in $(seq 1 10); do
+            if nc -z 127.0.0.1 6443 2>/dev/null; then
+              echo "Tunnel SSM établi sur le port 6443."
+              break
+            fi
+            echo "Attente du tunnel SSM... ($i/10)"
+            sleep 3
+          done
+ 
+      - name: Wait for cluster
+        run: kubectl get nodes --request-timeout=30s
+ 
+      # ------------------------------------------------------------------
+      # ÉTAT AVANT INCIDENT
+      # ------------------------------------------------------------------
+      - name: État avant incident
+        run: |
+          echo "## 🎬 Démo rollback — $SERVICE ($NAMESPACE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### État avant incident" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          kubectl get pods -n "$NAMESPACE" -l app="$SERVICE" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+ 
+      # ------------------------------------------------------------------
+      # INCIDENT SIMULÉ : image inexistante
+      # ------------------------------------------------------------------
+      - name: Casser volontairement le déploiement (image inexistante)
+        run: |
+          BOGUS_TAG="demo-rollback-$(date +%s)"
+          kubectl set image deployment/"$SERVICE" \
+            "$SERVICE"=135564937456.dkr.ecr."${AWS_REGION}".amazonaws.com/hrflow/"$SERVICE":"$BOGUS_TAG" \
+            -n "$NAMESPACE"
+ 
+      - name: Observer l'incident — preuve du zero-downtime
+        run: |
+          echo "### Incident en cours — l'ancien pod continue de servir le trafic" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Attente 20s pour laisser l'échec de pull d'image se manifester (ImagePullBackOff)..." >> "$GITHUB_STEP_SUMMARY"
+          sleep 20
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          kubectl get pods -n "$NAMESPACE" -l app="$SERVICE" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          RUNNING_COUNT=$(kubectl get pods -n "$NAMESPACE" -l app="$SERVICE" --field-selector=status.phase=Running -o name | wc -l)
+          if [ "$RUNNING_COUNT" -lt 1 ]; then
+            echo "::error::Aucun pod Running pendant l'incident — le zero-downtime n'est pas respecté."
+            echo "**❌ Zero-downtime NON respecté : 0 pod Running pendant l'incident.**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "**✅ Zero-downtime confirmé : $RUNNING_COUNT pod(s) encore Running pendant l'incident** (maxUnavailable=0)." >> "$GITHUB_STEP_SUMMARY"
+ 
+      # ------------------------------------------------------------------
+      # ROLLBACK CHRONOMÉTRÉ
+      # ------------------------------------------------------------------
+      - name: Rollback chronométré
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Rollback" >> "$GITHUB_STEP_SUMMARY"
+          T0=$(date +%s.%N)
+          kubectl rollout undo deployment/"$SERVICE" -n "$NAMESPACE"
+          kubectl rollout status deployment/"$SERVICE" -n "$NAMESPACE" --timeout=120s
+          T1=$(date +%s.%N)
+          DURATION=$(awk -v a="$T0" -v b="$T1" 'BEGIN{printf "%.1f", b-a}')
+          echo "DEMO_DURATION=$DURATION" >> "$GITHUB_ENV"
+          echo "**⏱ Rollback effectué en ${DURATION} secondes** (objectif du brief : moins de 10 minutes)." >> "$GITHUB_STEP_SUMMARY"
+ 
+      - name: État final
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### État final" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          kubectl get pods -n "$NAMESPACE" -l app="$SERVICE" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Résumé** : incident simulé sur \`$SERVICE\` ($NAMESPACE), zero-downtime confirmé, rollback en **${DEMO_DURATION}s**." >> "$GITHUB_STEP_SUMMARY"
+ 
+      - name: Nettoyage du tunnel SSM
+        if: always()
+        run: kill "$SSM_TUNNEL_PID" 2>/dev/null || true
+ 
