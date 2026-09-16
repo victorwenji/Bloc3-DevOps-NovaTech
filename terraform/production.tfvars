@@ -1,4 +1,4 @@
-aws_region = "eu-west-3"
+aws_region = "eu-central-1"
 
 vpc_name = "my-project-vpc-production"
 
