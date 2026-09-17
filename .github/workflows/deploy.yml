@@ -1,3 +1,4 @@
+
 name: HRFlow Deploy
  
 on:
@@ -644,16 +645,9 @@ jobs:
             FAILED_JOB="deploy-k8s (Deploy application to k3s)"
           fi
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MESSAGE="Le déploiement sur l'environnement ${{ inputs.environment }} a échoué. Job en échec : $FAILED_JOB. Commit : ${{ github.sha }}. Déclenché par : ${{ github.actor }}. Lien du run : $RUN_URL. Ce déploiement n'a PAS été appliqué avec succès - verifier l'etat reel de l'infra/des pods avant toute nouvelle tentative (voir docs/RUNBOOK.md, section 'Etat Terraform : diagnostics utiles')."
           aws sns publish \
             --topic-arn "${{ steps.sns.outputs.arn }}" \
-            --subject " HRFlow — Échec de déploiement (${{ inputs.environment }})" \
-            --message "Le déploiement sur l'environnement ${{ inputs.environment }} a échoué.
- 
-Job en échec : $FAILED_JOB
-Commit : ${{ github.sha }}
-Déclenché par : ${{ github.actor }}
-Lien du run : $RUN_URL
- 
-Ce déploiement n'a PAS été appliqué avec succès — vérifier l'état réel de l'infra/des pods avant toute nouvelle tentative (voir docs/RUNBOOK.md, section 'État Terraform : diagnostics utiles')."
-          echo "Alerte publiée sur SNS (${{ inputs.environment }}) — email envoyé à l'adresse souscrite (ALERT_EMAIL)."
- 
+            --subject "HRFlow - Echec de deploiement (${{ inputs.environment }})" \
+            --message "$MESSAGE"
+          echo "Alerte publiee sur SNS (${{ inputs.environment }}) - email envoye a l'adresse souscrite (ALERT_EMAIL)."
