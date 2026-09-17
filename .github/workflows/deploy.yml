@@ -1,15 +1,15 @@
 name: HRFlow Deploy
-
+ 
 on:
   workflow_call:
     inputs:
       environment:
         required: true
         type: string
-
+ 
 permissions:
   contents: read
-
+ 
 # Sans ça, chaque push déclenche son propre run complet (pipeline.yml se lance sur
 # tout push) et rien n'empêche plusieurs déploiements de tourner en parallèle sur le
 # même environnement : ils se marchent dessus sur le même state Terraform et le même
@@ -19,10 +19,10 @@ permissions:
 concurrency:
   group: hrflow-deploy-${{ inputs.environment }}
   cancel-in-progress: true
-
+ 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-
+ 
 jobs:
   terraform:
     name: Provision infrastructure
@@ -54,40 +54,40 @@ jobs:
       # Pas une donnée sensible (pas d'identifiant/secret exploitable) : vars.*
       # comme CORS_ALLOWED_ORIGINS/ACM_CERTIFICATE_ARN, pas secrets.*.
       TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
-
+ 
     steps:
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
+ 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
+ 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
-
+ 
       - name: Terraform init & select workspace
         working-directory: ./terraform
         run: |
           terraform init
           terraform workspace select "${{ inputs.environment }}" || \
             terraform workspace new "${{ inputs.environment }}"
-
+ 
       - name: Terraform Validate
         working-directory: ./terraform
         run: terraform validate
-
+ 
       - name: Terraform Plan
         working-directory: ./terraform
         run: terraform plan -var-file="${{ inputs.environment }}.tfvars"
-
+ 
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve -var-file="${{ inputs.environment }}.tfvars"
-
+ 
       - name: Get terraform outputs
         id: tf-output
         working-directory: ./terraform
@@ -105,7 +105,7 @@ jobs:
             fi
             echo "${name}=${value}" >> "$GITHUB_OUTPUT"
           done
-
+ 
   deploy-k8s:
     name: Deploy application to k3s
     runs-on: ubuntu-24.04
@@ -119,17 +119,17 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
+ 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
+ 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
-
+ 
       # needs.terraform.outputs.* peut arriver vide ici même quand le job terraform
       # a réussi avec des valeurs non vides : c'est un bug de propagation des job
       # outputs GitHub Actions (cf. actions/runner#2477), intermittent et sélectif
@@ -143,7 +143,7 @@ jobs:
           set -euo pipefail
           terraform init -input=false
           terraform workspace select "${{ inputs.environment }}"
-
+ 
           declare -A tf_to_env=(
             [instance_id]=INSTANCE_ID
             [rds_endpoint]=RDS_ENDPOINT
@@ -161,10 +161,10 @@ jobs:
             fi
             echo "${env_name}=${value}" >> "$GITHUB_ENV"
           done
-
+ 
       - name: Setup kubectl
         uses: azure/setup-kubectl@3e0aec4d80787158d308d7b364cb1b702e7feb7f # v4
-
+ 
       - name: Wait for SSM agent to register
         run: |
           echo "Waiting for instance to be managed by SSM..."
@@ -179,7 +179,7 @@ jobs:
             echo "Attempt $i/30: SSM agent not ready yet (status: $STATUS)"
             sleep 10
           done
-
+ 
       - name: Wait for k3s installation to complete
         run: |
           COMMAND_ID=$(aws ssm send-command \
@@ -195,21 +195,21 @@ jobs:
               "exit 1"
             ]' \
             --query "Command.CommandId" --output text)
-
+ 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" || true
-
+ 
           STATUS=$(aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "Status" --output text)
-
+ 
           aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "StandardOutputContent" --output text
-
+ 
           if [ "$STATUS" != "Success" ]; then
             echo "ERREUR : k3s n'a pas fini de s'installer à temps (status: $STATUS)."
             echo "--- fin de /var/log/novatech-install.log sur l'instance ---"
@@ -225,7 +225,7 @@ jobs:
               --query "StandardOutputContent" --output text
             exit 1
           fi
-
+ 
       - name: Fetch kubeconfig via SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
@@ -233,23 +233,23 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=["cat /etc/rancher/k3s/k3s.yaml"]' \
             --query "Command.CommandId" --output text)
-
+ 
           # On ignore le code de sortie du wait ici : s'il échoue, on veut quand
           # même récupérer stdout/stderr ci-dessous avant d'arrêter le job.
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" || true
-
+ 
           STATUS=$(aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "Status" --output text)
-
+ 
           aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "StandardOutputContent" --output text > kubeconfig.yaml
-
+ 
           if [ "$STATUS" != "Success" ] || [ ! -s kubeconfig.yaml ] || ! grep -q "apiVersion" kubeconfig.yaml; then
             echo "ERREUR : la commande SSM a échoué (status: $STATUS)."
             echo "--- stdout ---"
@@ -261,14 +261,14 @@ jobs:
               --query "StandardErrorContent" --output text
             exit 1
           fi
-
+ 
           echo "KUBECONFIG=$PWD/kubeconfig.yaml" >> "$GITHUB_ENV"
-
+ 
       - name: Install Session Manager plugin
         run: |
           curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           sudo dpkg -i session-manager-plugin.deb
-
+ 
       - name: Start SSM port-forward tunnel to k3s API
         run: |
           aws ssm start-session \
@@ -277,7 +277,7 @@ jobs:
             --parameters '{"portNumber":["6443"],"localPortNumber":["6443"]}' \
             > ssm-tunnel.log 2>&1 &
           echo "SSM_TUNNEL_PID=$!" >> "$GITHUB_ENV"
-
+ 
           for i in $(seq 1 10); do
             if nc -z 127.0.0.1 6443 2>/dev/null; then
               echo "Tunnel SSM établi sur le port 6443."
@@ -286,10 +286,10 @@ jobs:
             echo "Attente du tunnel SSM... ($i/10)"
             sleep 3
           done
-
+ 
       - name: Wait for cluster
         run: kubectl get nodes --request-timeout=30s
-
+ 
       - name: Install/upgrade Traefik
         run: |
           # Toujours rejoué (idempotent via helm upgrade --install), et non plus
@@ -332,7 +332,7 @@ jobs:
               "kubectl rollout status deployment/traefik -n kube-system --timeout=120s"
             ]' \
             --query "Command.CommandId" --output text)
-
+ 
           echo "Waiting for Traefik install command to complete..."
           # On ignore le code de sortie du wait ici : s'il échoue, on veut quand
           # même récupérer stdout/stderr et le Status ci-dessous avant d'arrêter
@@ -340,17 +340,17 @@ jobs:
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" || true
-
+ 
           STATUS=$(aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "Status" --output text)
-
+ 
           aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "StandardOutputContent" --output text
-
+ 
           # Sans ce check, un échec silencieux ici (helm/kubectl en erreur) laissait
           # le pipeline "vert" alors que Traefik restait absent/mal configuré ->
           # 0 target ALB healthy -> 502 permanent, découvert seulement en prod.
@@ -363,7 +363,7 @@ jobs:
               --query "StandardErrorContent" --output text
             exit 1
           fi
-
+ 
       - name: Verify Traefik is actually serving traffic
         run: |
           # Le rollout peut réussir (pod Running) sans que Traefik écoute
@@ -389,29 +389,29 @@ jobs:
               "exit 1"
             ]' \
             --query "Command.CommandId" --output text)
-
+ 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" || true
-
+ 
           STATUS=$(aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "Status" --output text)
-
+ 
           aws ssm get-command-invocation \
             --instance-id "$INSTANCE_ID" \
             --command-id "$COMMAND_ID" \
             --query "StandardOutputContent" --output text
-
+ 
           if [ "$STATUS" != "Success" ]; then
             echo "ERREUR : Traefik ne répond pas sur le port 80 de l'instance après installation."
             exit 1
           fi
-
+ 
       - name: Apply namespace
         run: envsubst < k8s/namespace.yaml | kubectl apply -f -
-
+ 
       - name: Create/update ConfigMap
         run: |
           kubectl create configmap hrflow-config \
@@ -428,7 +428,7 @@ jobs:
             --from-literal=REDIS_PORT=6379 \
             --from-literal=CORS_ALLOWED_ORIGINS="${{ vars.CORS_ALLOWED_ORIGINS }}" \
             --dry-run=client -o yaml | kubectl apply -f -
-
+ 
       - name: Create/update Secret
         run: |
           kubectl create secret generic hrflow-secrets \
@@ -440,22 +440,22 @@ jobs:
             --from-literal=JWT_REFRESH_SECRET="${{ secrets.JWT_REFRESH_SECRET }}" \
             --from-literal=STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
-
+ 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
-
+ 
       - name: Create ECR pull secret
         run: |
           ECR_TOKEN=$(aws ecr get-login-password --region "${{ secrets.AWS_REGION }}")
-
+ 
           kubectl create secret docker-registry ecr-pull-secret \
             --namespace "${{ env.NAMESPACE }}" \
             --docker-server="${{ steps.login-ecr.outputs.registry }}" \
             --docker-username=AWS \
             --docker-password="$ECR_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
-
+ 
       - name: Initialize database schema
         run: |
           kubectl apply -f k8s/postgres-init-configmap.yaml -n ${{ env.NAMESPACE }}
@@ -464,18 +464,18 @@ jobs:
           kubectl delete job postgres-init -n ${{ env.NAMESPACE }} --ignore-not-found
           kubectl apply -f k8s/postgres-init-job.yaml -n ${{ env.NAMESPACE }}
           kubectl wait --for=condition=complete job/postgres-init -n ${{ env.NAMESPACE }} --timeout=120s
-
+ 
       - name: Debug database init on failure
         if: failure()
         run: |
           kubectl logs -n ${{ env.NAMESPACE }} job/postgres-init --tail=100 || true
-
+ 
       - name: Deploy Redis
         run: |
           # Postgres n'est plus déployé ici : on utilise désormais RDS (voir ConfigMap DB_HOST)
           kubectl apply -f k8s/redis/ -n ${{ env.NAMESPACE }}
           kubectl rollout status statefulset/redis -n ${{ env.NAMESPACE }} --timeout=60s
-
+ 
       - name: Substitute image variables and deploy backend services
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -485,13 +485,13 @@ jobs:
             envsubst < k8s/$svc/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
             kubectl apply -f k8s/$svc/service.yaml -n ${{ env.NAMESPACE }}
           done
-
+ 
       - name: Wait for backend services
         run: |
           for svc in auth paie conges recrutement; do
             kubectl rollout status deployment/$svc -n ${{ env.NAMESPACE }} --timeout=120s
           done
-
+ 
       - name: Debug pods on failure
         if: failure()
         run: |
@@ -505,7 +505,7 @@ jobs:
             echo "=== $svc : logs ==="
             kubectl logs -n ${{ env.NAMESPACE }} -l app=$svc --tail=50 --all-containers || true
           done
-
+ 
       - name: Deploy gateway (rolling update, zero-downtime vérifié)
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -521,7 +521,7 @@ jobs:
             FIRST_DEPLOY=true
             echo "Premier déploiement du gateway sur ce namespace - vérification zero-downtime ignorée."
           fi
-
+ 
           if [ "$FIRST_DEPLOY" = "false" ]; then
             # Lancé AVANT l'apply, pour couvrir tout le rolling update dès
             # ses premières secondes. Un pod dédié dans le cluster (pas un
@@ -542,30 +542,30 @@ jobs:
                 done
               '
           fi
-
+ 
           envsubst < k8s/gateway/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
           kubectl apply -f k8s/gateway/service.yaml -n ${{ env.NAMESPACE }}
-
+ 
           kubectl rollout status deployment/gateway -n ${{ env.NAMESPACE }} --timeout=120s
           ROLLOUT_STATUS=$?
-
+ 
           if [ "$FIRST_DEPLOY" = "true" ]; then
             [ "$ROLLOUT_STATUS" -eq 0 ] || { echo "::error::Le rollout initial du gateway a échoué."; exit 1; }
             exit 0
           fi
-
+ 
           echo "Attente de la fin du moniteur zero-downtime..."
           kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/zero-downtime-monitor \
             -n ${{ env.NAMESPACE }} --timeout=100s || true
-
+ 
           kubectl logs zero-downtime-monitor -n ${{ env.NAMESPACE }} > /tmp/zero-downtime.log || true
           kubectl delete pod zero-downtime-monitor -n ${{ env.NAMESPACE }} --ignore-not-found
-
+ 
           TOTAL=$(wc -l < /tmp/zero-downtime.log)
           FAILURES=$(grep -vc "^200$" /tmp/zero-downtime.log || true)
           echo "Requêtes /health pendant le rolling update : $TOTAL, échecs : $FAILURES"
           cat /tmp/zero-downtime.log
-
+ 
           if [ "$ROLLOUT_STATUS" -ne 0 ]; then
             echo "::error::Le rollout du gateway a échoué."
             exit 1
@@ -578,7 +578,7 @@ jobs:
             echo "::error::Downtime détecté pendant le rolling update ($FAILURES/$TOTAL requêtes en échec)"
             exit 1
           fi
-
+ 
       - name: Deploy frontend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -587,14 +587,73 @@ jobs:
           envsubst < k8s/frontend/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
           kubectl apply -f k8s/frontend/service.yaml -n ${{ env.NAMESPACE }}
           kubectl rollout status deployment/frontend -n ${{ env.NAMESPACE }} --timeout=120s
-
+ 
       - name: Apply Ingress
         run: kubectl apply -f k8s/ingress.yaml -n ${{ env.NAMESPACE }}
-
+ 
       - name: Show access endpoints
         run: |
           echo "Application disponible via l'ALB : http://${{ env.ALB_DNS_NAME }}"
-
+ 
       - name: Close SSM tunnel
         if: always()
         run: kill "$SSM_TUNNEL_PID" || true
+ 
+  notify-on-failure:
+    name: Alerter en cas d'échec de déploiement
+    runs-on: ubuntu-24.04
+    needs: [terraform, deploy-k8s]
+    # always() : sans ça, un job "needs" est automatiquement sauté (pas exécuté)
+    # dès qu'une dépendance échoue — exactement l'inverse de ce qu'on veut ici.
+    # failure() filtre ensuite pour ne notifier QUE si terraform ou deploy-k8s a
+    # réellement échoué (pas sur un succès, ni sur une annulation manuelle).
+    if: always() && (needs.terraform.result == 'failure' || needs.deploy-k8s.result == 'failure')
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+ 
+      - name: Récupérer le topic SNS existant
+        id: sns
+        working-directory: ./terraform
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform workspace select "${{ inputs.environment }}"
+          ARN="$(terraform output -raw sns_topic_arn)"
+          if [ -z "$ARN" ]; then
+            echo "::error::sns_topic_arn est vide — impossible d'alerter, mais on ne fait pas échouer le run pour autant (l'échec réel a déjà été signalé par les jobs précédents)."
+            exit 0
+          fi
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+ 
+      - name: Publier l'alerte sur SNS (email immédiat)
+        if: steps.sns.outputs.arn != ''
+        run: |
+          FAILED_JOB="terraform (Provision infrastructure)"
+          if [ "${{ needs.deploy-k8s.result }}" == "failure" ]; then
+            FAILED_JOB="deploy-k8s (Deploy application to k3s)"
+          fi
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          aws sns publish \
+            --topic-arn "${{ steps.sns.outputs.arn }}" \
+            --subject " HRFlow — Échec de déploiement (${{ inputs.environment }})" \
+            --message "Le déploiement sur l'environnement ${{ inputs.environment }} a échoué.
+ 
+Job en échec : $FAILED_JOB
+Commit : ${{ github.sha }}
+Déclenché par : ${{ github.actor }}
+Lien du run : $RUN_URL
+ 
+Ce déploiement n'a PAS été appliqué avec succès — vérifier l'état réel de l'infra/des pods avant toute nouvelle tentative (voir docs/RUNBOOK.md, section 'État Terraform : diagnostics utiles')."
+          echo "Alerte publiée sur SNS (${{ inputs.environment }}) — email envoyé à l'adresse souscrite (ALERT_EMAIL)."
+ 
