@@ -4,7 +4,7 @@ metadata:
   name: frontend
 spec:
   # Rolling Update explicite (alternative retenue au Blue/Green, voir
-  # docs/BLUE-GREEN-STRATEGIE.md) : maxUnavailable=0 garantit qu'il y a
+  # docs/BLUE-GREEN-STRATEGIE.md) : maxUnavailable=0 garantit qu'il y 
   # toujours au moins autant de pods "old" que de replicas demandés tant que
   # le "new" pod n'est pas Ready ; maxSurge=1 autorise un pod supplémentaire
   # temporaire pour faire cette transition sans jamais couper le service.
